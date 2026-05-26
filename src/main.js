@@ -7,7 +7,7 @@ if (started) {
   app.quit();
 }
 
-const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+;' : 'Control+;';
+const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
 let mainWindow = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
