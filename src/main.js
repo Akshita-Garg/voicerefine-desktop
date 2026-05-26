@@ -7,7 +7,7 @@ if (started) {
   app.quit();
 }
 
-const HOTKEY_ACCELERATOR = 'CommandOrControl+;';
+const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+;' : 'Control+;';
 let mainWindow = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
@@ -68,15 +68,17 @@ async function showHotkeyFailureDialog() {
 }
 
 function registerGlobalHotkey() {
+  console.log(`[hotkey] Registering ${HOTKEY_ACCELERATOR} on ${process.platform}`);
   const registered = globalShortcut.register(HOTKEY_ACCELERATOR, () => {
     console.log(`[hotkey] ${HOTKEY_ACCELERATOR} pressed`);
     mainWindow?.webContents.send('voice-refine-hotkey-pressed');
   });
 
+  const isRegistered = globalShortcut.isRegistered(HOTKEY_ACCELERATOR);
   if (registered) {
-    console.log(`[hotkey] Registered ${HOTKEY_ACCELERATOR}`);
+    console.log(`[hotkey] Registered ${HOTKEY_ACCELERATOR}`, { isRegistered });
   } else {
-    console.warn(`[hotkey] Failed to register ${HOTKEY_ACCELERATOR}`);
+    console.warn(`[hotkey] Failed to register ${HOTKEY_ACCELERATOR}`, { isRegistered });
     void showHotkeyFailureDialog();
   }
 }
