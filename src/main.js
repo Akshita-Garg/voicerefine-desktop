@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
@@ -6,6 +6,9 @@ import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from
 if (started) {
   app.quit();
 }
+
+const HOTKEY_ACCELERATOR = 'CommandOrControl+;';
+let mainWindow = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
 // headers even in Electron. The Vite dev server sets them itself; for
@@ -23,12 +26,16 @@ function addCrossOriginHeaders() {
 }
 
 const createWindow = () => {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -38,6 +45,41 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 };
+
+async function showHotkeyFailureDialog() {
+  const isMac = process.platform === 'darwin';
+  const detail = isMac
+    ? 'macOS may require Accessibility permission before VoiceRefine can listen for global shortcuts. Open System Settings > Privacy & Security > Accessibility and allow VoiceRefine.'
+    : 'Another app may already be using this shortcut, or the operating system rejected the registration.';
+
+  const result = await dialog.showMessageBox(mainWindow ?? undefined, {
+    type: 'warning',
+    title: 'Global hotkey unavailable',
+    message: `VoiceRefine could not register ${HOTKEY_ACCELERATOR}.`,
+    detail,
+    buttons: isMac ? ['Open Accessibility Settings', 'OK'] : ['OK'],
+    defaultId: isMac ? 1 : 0,
+    cancelId: isMac ? 1 : 0,
+  });
+
+  if (isMac && result.response === 0) {
+    await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+  }
+}
+
+function registerGlobalHotkey() {
+  const registered = globalShortcut.register(HOTKEY_ACCELERATOR, () => {
+    console.log(`[hotkey] ${HOTKEY_ACCELERATOR} pressed`);
+    mainWindow?.webContents.send('voice-refine-hotkey-pressed');
+  });
+
+  if (registered) {
+    console.log(`[hotkey] Registered ${HOTKEY_ACCELERATOR}`);
+  } else {
+    console.warn(`[hotkey] Failed to register ${HOTKEY_ACCELERATOR}`);
+    void showHotkeyFailureDialog();
+  }
+}
 
 app.whenReady().then(() => {
   addCrossOriginHeaders();
@@ -52,6 +94,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  registerGlobalHotkey();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -69,4 +112,8 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   clearUnloadTimer();
   void unloadBuiltinModel();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
