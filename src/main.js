@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
@@ -9,6 +9,7 @@ if (started) {
 
 const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
 let mainWindow = null;
+let overlayWindow = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
 // headers even in Electron. The Vite dev server sets them itself; for
@@ -46,6 +47,61 @@ const createWindow = () => {
   }
 };
 
+function positionOverlayWindow() {
+  if (!overlayWindow) return;
+
+  const { workArea } = screen.getPrimaryDisplay();
+  const bounds = overlayWindow.getBounds();
+  const x = Math.round(workArea.x + (workArea.width - bounds.width) / 2);
+  const y = Math.round(workArea.y + workArea.height - bounds.height - 56);
+  overlayWindow.setPosition(x, y, false);
+}
+
+const createOverlayWindow = () => {
+  overlayWindow = new BrowserWindow({
+    width: 340,
+    height: 120,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: false,
+    show: false,
+    focusable: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  overlayWindow.on('closed', () => {
+    overlayWindow = null;
+  });
+
+  if (OVERLAY_WINDOW_VITE_DEV_SERVER_URL) {
+    overlayWindow.loadURL(`${OVERLAY_WINDOW_VITE_DEV_SERVER_URL}/overlay.html`);
+  } else {
+    overlayWindow.loadFile(path.join(__dirname, `../renderer/${OVERLAY_WINDOW_VITE_NAME}/overlay.html`));
+  }
+
+  positionOverlayWindow();
+};
+
+function toggleRecordingOverlay() {
+  if (!overlayWindow) createOverlayWindow();
+
+  if (overlayWindow.isVisible()) {
+    overlayWindow.hide();
+    console.log('[overlay] hidden');
+    return;
+  }
+
+  positionOverlayWindow();
+  overlayWindow.showInactive();
+  console.log('[overlay] shown');
+}
+
 async function showHotkeyFailureDialog() {
   const isMac = process.platform === 'darwin';
   const detail = isMac
@@ -71,6 +127,7 @@ function registerGlobalHotkey() {
   console.log(`[hotkey] Registering ${HOTKEY_ACCELERATOR} on ${process.platform}`);
   const registered = globalShortcut.register(HOTKEY_ACCELERATOR, () => {
     console.log(`[hotkey] ${HOTKEY_ACCELERATOR} pressed`);
+    toggleRecordingOverlay();
     mainWindow?.webContents.send('voice-refine-hotkey-pressed');
   });
 
@@ -96,6 +153,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  createOverlayWindow();
   registerGlobalHotkey();
 
   app.on('activate', () => {

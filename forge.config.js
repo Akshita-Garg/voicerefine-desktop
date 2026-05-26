@@ -51,6 +51,10 @@ module.exports = {
             name: 'main_window',
             config: 'vite.renderer.config.mjs',
           },
+          {
+            name: 'overlay_window',
+            config: 'vite.overlay.config.mjs',
+          },
         ],
       },
     },
