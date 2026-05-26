@@ -8,8 +8,12 @@ if (started) {
 }
 
 const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
+const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;
+let overlayReady = false;
+let overlayRecording = false;
+let pendingOverlayCommand = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
 // headers even in Electron. The Vite dev server sets them itself; for
@@ -58,6 +62,7 @@ function positionOverlayWindow() {
 }
 
 const createOverlayWindow = () => {
+  overlayReady = false;
   overlayWindow = new BrowserWindow({
     width: 340,
     height: 120,
@@ -88,18 +93,46 @@ const createOverlayWindow = () => {
   positionOverlayWindow();
 };
 
-function toggleRecordingOverlay() {
+function sendOverlayCommand(command) {
+  if (!overlayWindow) createOverlayWindow();
+  if (!overlayReady) {
+    pendingOverlayCommand = command;
+    return;
+  }
+  overlayWindow.webContents.send('overlay-command', command);
+}
+
+function showOverlayAndStartRecording() {
   if (!overlayWindow) createOverlayWindow();
 
-  if (overlayWindow.isVisible()) {
-    overlayWindow.hide();
-    console.log('[overlay] hidden');
+  if (!overlayWindow.isVisible()) {
+    positionOverlayWindow();
+    overlayWindow.showInactive();
+    console.log('[overlay] shown');
+  }
+
+  sendOverlayCommand('start-recording');
+}
+
+function stopOverlayRecording() {
+  sendOverlayCommand('stop-recording');
+}
+
+function cancelOverlayRecording() {
+  if (!overlayWindow?.isVisible()) return;
+  sendOverlayCommand('cancel-recording');
+  overlayWindow.hide();
+  overlayRecording = false;
+  console.log('[overlay] cancelled');
+}
+
+function toggleRecordingOverlay() {
+  if (overlayRecording) {
+    stopOverlayRecording();
     return;
   }
 
-  positionOverlayWindow();
-  overlayWindow.showInactive();
-  console.log('[overlay] shown');
+  showOverlayAndStartRecording();
 }
 
 async function showHotkeyFailureDialog() {
@@ -138,6 +171,11 @@ function registerGlobalHotkey() {
     console.warn(`[hotkey] Failed to register ${HOTKEY_ACCELERATOR}`, { isRegistered });
     void showHotkeyFailureDialog();
   }
+
+  const cancelRegistered = globalShortcut.register(CANCEL_ACCELERATOR, () => {
+    if (overlayWindow?.isVisible()) cancelOverlayRecording();
+  });
+  console.log(`[hotkey] Esc cancel registration`, { isRegistered: cancelRegistered });
 }
 
 app.whenReady().then(() => {
@@ -150,6 +188,30 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('warm-builtin', async () => {
     return await warmBuiltin();
+  });
+  ipcMain.on('overlay-ready', () => {
+    overlayReady = true;
+    if (pendingOverlayCommand) {
+      const command = pendingOverlayCommand;
+      pendingOverlayCommand = null;
+      sendOverlayCommand(command);
+    }
+  });
+  ipcMain.on('overlay-recording-started', () => {
+    overlayRecording = true;
+    console.log('[overlay] recording started');
+  });
+  ipcMain.on('overlay-recording-stopped', (_event, metadata) => {
+    overlayRecording = false;
+    overlayWindow?.hide();
+    console.log('[overlay] recording stopped', metadata);
+  });
+  ipcMain.on('overlay-recording-failed', (_event, message) => {
+    overlayRecording = false;
+    console.warn('[overlay] recording failed', message);
+    setTimeout(() => {
+      if (!overlayRecording) overlayWindow?.hide();
+    }, 1400);
   });
 
   createWindow();
