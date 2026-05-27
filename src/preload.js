@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('voicerefine', {
   overlayReady: () => ipcRenderer.send('overlay-ready'),
   overlayRecordingStarted: () => ipcRenderer.send('overlay-recording-started'),
   overlayRecordingStopped: (metadata) => ipcRenderer.send('overlay-recording-stopped', metadata),
+  overlayTranscriptionComplete: (payload) => ipcRenderer.send('overlay-transcription-complete', payload),
   overlayRecordingFailed: (message) => ipcRenderer.send('overlay-recording-failed', message),
   onOverlayCommand: (handler) => {
     const listener = (_event, command) => handler(command);

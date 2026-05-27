@@ -13,6 +13,7 @@ let mainWindow = null;
 let overlayWindow = null;
 let overlayReady = false;
 let overlayRecording = false;
+let overlayProcessing = false;
 let pendingOverlayCommand = null;
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
@@ -104,6 +105,10 @@ function sendOverlayCommand(command) {
 
 function showOverlayAndStartRecording() {
   if (!overlayWindow) createOverlayWindow();
+  if (overlayProcessing) {
+    console.log('[overlay] ignoring start while processing');
+    return;
+  }
 
   if (!overlayWindow.isVisible()) {
     positionOverlayWindow();
@@ -123,6 +128,7 @@ function cancelOverlayRecording() {
   sendOverlayCommand('cancel-recording');
   overlayWindow.hide();
   overlayRecording = false;
+  overlayProcessing = false;
   console.log('[overlay] cancelled');
 }
 
@@ -199,15 +205,21 @@ app.whenReady().then(() => {
   });
   ipcMain.on('overlay-recording-started', () => {
     overlayRecording = true;
+    overlayProcessing = false;
     console.log('[overlay] recording started');
   });
   ipcMain.on('overlay-recording-stopped', (_event, metadata) => {
     overlayRecording = false;
-    overlayWindow?.hide();
+    overlayProcessing = true;
     console.log('[overlay] recording stopped', metadata);
+  });
+  ipcMain.on('overlay-transcription-complete', (_event, payload) => {
+    overlayProcessing = false;
+    console.log('[overlay] transcription complete', payload);
   });
   ipcMain.on('overlay-recording-failed', (_event, message) => {
     overlayRecording = false;
+    overlayProcessing = false;
     console.warn('[overlay] recording failed', message);
     setTimeout(() => {
       if (!overlayRecording) overlayWindow?.hide();

@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { LoaderCircle, Mic, Square } from 'lucide-react'
+import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
+import { transcribe } from './services/transcribe'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -16,6 +17,7 @@ function formatTime(totalSeconds) {
 function Overlay() {
   const [status, setStatus] = useState('idle')
   const [elapsed, setElapsed] = useState(0)
+  const [transcript, setTranscript] = useState('')
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -35,6 +37,7 @@ function Overlay() {
 
     setStatus('starting')
     setElapsed(0)
+    setTranscript('')
     chunksRef.current = []
 
     try {
@@ -49,17 +52,32 @@ function Overlay() {
         if (event.data.size > 0) chunksRef.current.push(event.data)
       }
 
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
         const durationMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0
         cleanupRecorder()
-        setStatus('idle')
+        setStatus('transcribing')
         setElapsed(0)
         window.voicerefine.overlayRecordingStopped({
           bytes: blob.size,
           mimeType: blob.type,
           durationMs,
         })
+
+        try {
+          const startedAt = Date.now()
+          const text = await transcribe(blob)
+          setTranscript(text)
+          setStatus('complete')
+          window.voicerefine.overlayTranscriptionComplete({
+            text,
+            chars: text.length,
+            durationMs: Date.now() - startedAt,
+          })
+        } catch (err) {
+          setStatus('error')
+          window.voicerefine.overlayRecordingFailed(err?.message ?? 'Transcription failed')
+        }
       }
 
       startedAtRef.current = Date.now()
@@ -91,6 +109,7 @@ function Overlay() {
     cleanupRecorder()
     setStatus('idle')
     setElapsed(0)
+    setTranscript('')
   }
 
   useEffect(() => {
@@ -108,7 +127,18 @@ function Overlay() {
   }, [])
 
   const isRecording = status === 'recording'
-  const isBusy = status === 'starting' || status === 'stopping'
+  const isBusy = status === 'starting' || status === 'stopping' || status === 'transcribing'
+  const isComplete = status === 'complete'
+  const title =
+    status === 'error' ? 'Something went wrong'
+      : status === 'transcribing' ? 'Transcribing...'
+        : isBusy ? 'Preparing...'
+          : isComplete ? 'Transcript ready'
+            : 'Recording...'
+  const subtitle =
+    status === 'transcribing' ? 'Converting your recording locally'
+      : isComplete ? (transcript || 'No speech detected')
+        : `Press ${HOTKEY_LABEL} again or Esc`
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center text-[#F7F1EA]">
@@ -123,15 +153,19 @@ function Overlay() {
         <div className="flex items-center gap-3">
           <div className={`relative flex h-10 w-10 items-center justify-center rounded-full ${status === 'error' ? 'bg-red-700' : 'bg-[#D15F54]'}`}>
             {isRecording && <span className="absolute inset-0 rounded-full bg-[#D15F54] opacity-35 animate-ping" />}
-            {isBusy ? <LoaderCircle size={18} strokeWidth={1.8} className="relative animate-spin" /> : isRecording ? <Square size={16} strokeWidth={1.8} fill="currentColor" className="relative" /> : <Mic size={18} strokeWidth={1.8} className="relative" />}
+            {isBusy
+              ? <LoaderCircle size={18} strokeWidth={1.8} className="relative animate-spin" />
+              : isComplete
+                ? <Check size={18} strokeWidth={2} className="relative" />
+                : isRecording
+                  ? <Square size={16} strokeWidth={1.8} fill="currentColor" className="relative" />
+                  : <Mic size={18} strokeWidth={1.8} className="relative" />}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight">
-              {status === 'error' ? 'Microphone unavailable' : isBusy ? 'Preparing...' : 'Recording...'}
-            </div>
-            <div className="mt-0.5 text-xs text-[#D8CEC6]">Press {HOTKEY_LABEL} again or Esc</div>
+            <div className="text-sm font-semibold leading-tight">{title}</div>
+            <div className="mt-0.5 max-w-[190px] truncate text-xs text-[#D8CEC6]">{subtitle}</div>
           </div>
-          <div className="ml-auto text-sm tabular-nums text-[#D8CEC6]">{formatTime(elapsed)}</div>
+          <div className="ml-auto text-sm tabular-nums text-[#D8CEC6]">{isRecording ? formatTime(elapsed) : ''}</div>
         </div>
       </div>
     </div>
