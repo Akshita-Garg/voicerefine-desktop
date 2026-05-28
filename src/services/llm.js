@@ -19,6 +19,11 @@ export async function warmBuiltinRefinement() {
   return await window.voicerefine.warmBuiltin()
 }
 
+export async function releaseBuiltinForTranscription() {
+  if (!window.voicerefine?.releaseBuiltinForTranscription) return null
+  return await window.voicerefine.releaseBuiltinForTranscription()
+}
+
 /**
  * Read provider config from localStorage.
  * Falls back to the bundled local model for the desktop app.

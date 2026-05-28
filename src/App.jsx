@@ -6,7 +6,7 @@ import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
 import { transcribe, preloadTranscriber } from './services/transcribe'
 import { composePrompt } from './utils/composePrompt'
-import { refine, warmBuiltinRefinement } from './services/llm'
+import { refine, releaseBuiltinForTranscription } from './services/llm'
 
 const MODES = [
   { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean prose. Preserves the flow of what you said.' },
@@ -86,25 +86,11 @@ function App() {
       .catch(() => {})
   }, [onboardingDone])
 
-  useEffect(() => {
-    if (!onboardingDone || !transcribeModelReady || provider !== 'builtin') return
-
-    let cancelled = false
-    warmBuiltinRefinement()
-      .then(info => {
-        if (!cancelled && info) console.log('[App] Built-in refinement warmed:', info)
-      })
-      .catch(err => {
-        if (!cancelled) console.warn('[App] Built-in refinement warmup failed:', err)
-      })
-
-    return () => { cancelled = true }
-  }, [onboardingDone, provider, transcribeModelReady])
-
   const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
     setIsTranscribing(true)
     try {
+      await releaseBuiltinForTranscription()
       const text = await transcribe(blob)
       setRawTranscript(prev => prev ? prev + '\n\n' + text : text)
     } catch (err) {

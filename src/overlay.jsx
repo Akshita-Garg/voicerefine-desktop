@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
 import { transcribe } from './services/transcribe'
+import { releaseBuiltinForTranscription } from './services/llm'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -66,6 +67,7 @@ function Overlay() {
 
         try {
           const startedAt = Date.now()
+          await releaseBuiltinForTranscription()
           const text = await transcribe(blob)
           setTranscript(text)
           setStatus('complete')

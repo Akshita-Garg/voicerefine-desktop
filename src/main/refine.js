@@ -191,6 +191,26 @@ export async function unloadBuiltinModel() {
   console.log('[refine] Runtime unloaded');
 }
 
+export async function releaseBuiltinForTranscription() {
+  clearUnloadTimer();
+
+  if (activeRefinements > 0) {
+    console.log('[refine] Skipping ASR release because refinement is active');
+    return { released: false, reason: 'active-refinement' };
+  }
+
+  await modelLoadPromise?.catch(() => null);
+  await contextLoadPromise?.catch(() => null);
+
+  if (!llama && !model && !context && !sequence) {
+    return { released: false, reason: 'not-loaded' };
+  }
+
+  console.log('[refine] Releasing Gemma runtime before WebGPU transcription');
+  await disposeRuntime();
+  return { released: true };
+}
+
 async function runRefinement(systemMessage, userMessage) {
   const { LlamaChatSession } = await import('node-llama-cpp');
 
