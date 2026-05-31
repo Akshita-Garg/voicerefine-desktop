@@ -19,6 +19,10 @@ let activeGpuMode = null;
 
 export const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
+function now() {
+  return performance.now();
+}
+
 function getModelPath() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'models', 'gemma-3-1b-it-Q4_K_M.gguf');
@@ -63,10 +67,16 @@ async function disposeRuntime() {
 async function loadModelWithGpuMode(gpu) {
   const { getLlama } = await import('node-llama-cpp');
 
+  const runtimeStartedAt = now();
   console.log('[refine] Initializing llama runtime with GPU mode:', gpu || 'cpu');
   llama = await getLlama({ gpu, maxThreads: 0 });
   activeGpuMode = gpu;
+  console.log('[refine] Llama runtime ready', {
+    gpuMode: activeGpuMode || 'cpu',
+    durationMs: Math.round(now() - runtimeStartedAt),
+  });
 
+  const modelStartedAt = now();
   console.log('[refine] Loading Gemma model from', getModelPath());
   model = await llama.loadModel({
     modelPath: getModelPath(),
@@ -75,6 +85,7 @@ async function loadModelWithGpuMode(gpu) {
   console.log('[refine] Model loaded', {
     gpuMode: activeGpuMode || 'cpu',
     gpuLayers: model.gpuLayers,
+    durationMs: Math.round(now() - modelStartedAt),
   });
 
   return model;
@@ -112,6 +123,7 @@ async function getSequence() {
   contextLoadPromise = (async () => {
     try {
       const currentModel = await getModel();
+      const contextStartedAt = now();
       // 2048 tokens is plenty for voice refinement and keeps KV-cache RAM modest.
       context = await createRefinementContext(currentModel);
       sequence = context.getSequence();
@@ -120,6 +132,7 @@ async function getSequence() {
         contextSize: context.contextSize,
         threads: context.idealThreads,
         flashAttention: context.flashAttention,
+        durationMs: Math.round(now() - contextStartedAt),
       });
       return sequence;
     } catch (err) {
@@ -128,12 +141,14 @@ async function getSequence() {
       console.warn('[refine] GPU context creation failed; retrying on CPU', err);
       await disposeRuntime();
       const currentModel = await loadModelWithGpuMode(false);
+      const contextStartedAt = now();
       context = await createRefinementContext(currentModel);
       sequence = context.getSequence();
       console.log('[refine] CPU fallback context ready', {
         contextSize: context.contextSize,
         threads: context.idealThreads,
         flashAttention: context.flashAttention,
+        durationMs: Math.round(now() - contextStartedAt),
       });
       return sequence;
     }
@@ -216,9 +231,12 @@ async function runRefinement(systemMessage, userMessage) {
 
   activeRefinements += 1;
   let session = null;
+  const totalStartedAt = now();
 
   try {
+    const sequenceStartedAt = now();
     const currentSequence = await getSequence();
+    const sequenceWaitMs = Math.round(now() - sequenceStartedAt);
     await currentSequence.clearHistory();
 
     session = new LlamaChatSession({
@@ -228,7 +246,7 @@ async function runRefinement(systemMessage, userMessage) {
     });
 
     const maxTokens = calculateMaxTokens(userMessage);
-    const startedAt = performance.now();
+    const startedAt = now();
 
     const response = await session.prompt(userMessage, {
       maxTokens,
@@ -238,8 +256,11 @@ async function runRefinement(systemMessage, userMessage) {
     });
 
     console.log('[refine] Refinement complete', {
-      durationMs: Math.round(performance.now() - startedAt),
+      sequenceWaitMs,
+      generationMs: Math.round(now() - startedAt),
+      totalMs: Math.round(now() - totalStartedAt),
       maxTokens,
+      chars: response.length,
     });
 
     return response;

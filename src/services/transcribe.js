@@ -24,11 +24,24 @@ let transcriberReady   = false;
 let progressHandler    = null;
 let loadedModelId      = null;
 
+function now() {
+  return globalThis.performance?.now ? globalThis.performance.now() : Date.now();
+}
+
+function logAsrLatency(event, details = {}) {
+  console.log(`[asr] ${event}`, {
+    engine: 'transformers-webgpu',
+    ...details,
+  });
+}
+
 function getTranscriber() {
   const modelId = currentModelId();
   if (!transcriberPromise || loadedModelId !== modelId) {
+    const startedAt = now();
     transcriberReady   = false;
     loadedModelId      = modelId;
+    logAsrLatency('model load started', { modelId });
     transcriberPromise = pipeline(
       'automatic-speech-recognition',
       modelId,
@@ -41,24 +54,65 @@ function getTranscriber() {
           }
         },
       }
-    ).then(t => { transcriberReady = true; return t; });
+    ).then(t => {
+      transcriberReady = true;
+      logAsrLatency('model load complete', {
+        modelId,
+        durationMs: Math.round(now() - startedAt),
+      });
+      return t;
+    });
   }
   return transcriberPromise;
 }
 
 async function blobToAudioSamples(blob) {
+  const startedAt = now();
   const arrayBuffer = await blob.arrayBuffer();
   const audioContext = new AudioContext({ sampleRate: 16000 });
   const audioBuffer  = await audioContext.decodeAudioData(arrayBuffer);
   await audioContext.close();
+  logAsrLatency('audio decoded', {
+    bytes: blob.size,
+    mimeType: blob.type,
+    durationMs: Math.round(now() - startedAt),
+    audioSeconds: Number(audioBuffer.duration.toFixed(2)),
+    sampleRate: audioBuffer.sampleRate,
+  });
   return audioBuffer.getChannelData(0);
 }
 
 export async function transcribe(blob) {
-  const modelId     = currentModelId();
-  const audio       = await blobToAudioSamples(blob);
+  const startedAt = now();
+  const modelId = currentModelId();
+  logAsrLatency('transcription started', {
+    modelId,
+    bytes: blob.size,
+    mimeType: blob.type,
+  });
+
+  const audioStartedAt = now();
+  const audio = await blobToAudioSamples(blob);
+  const audioDecodeMs = Math.round(now() - audioStartedAt);
+
+  const modelStartedAt = now();
   const transcriber = await getTranscriber();
-  const result      = await transcriber(audio, INFERENCE_PARAMS[modelId]);
+  const modelWaitMs = Math.round(now() - modelStartedAt);
+
+  const inferenceStartedAt = now();
+  const result = await transcriber(audio, INFERENCE_PARAMS[modelId]);
+  const inferenceMs = Math.round(now() - inferenceStartedAt);
+  const totalMs = Math.round(now() - startedAt);
+
+  logAsrLatency('transcription complete', {
+    modelId,
+    audioDecodeMs,
+    modelWaitMs,
+    inferenceMs,
+    totalMs,
+    chars: result.text.trim().length,
+  });
+
   return result.text.trim();
 }
 

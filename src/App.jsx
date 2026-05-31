@@ -4,7 +4,7 @@ import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
-import { transcribe, preloadTranscriber } from './services/transcribe'
+import { transcribe, preloadTranscriber } from './services/asr'
 import { composePrompt } from './utils/composePrompt'
 import { refine, releaseBuiltinForTranscription } from './services/llm'
 
@@ -89,10 +89,22 @@ function App() {
   const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
     setIsTranscribing(true)
+    const startedAt = performance.now()
     try {
+      console.log('[pipeline] main transcription started', {
+        bytes: blob.size,
+        mimeType: blob.type,
+      })
+      const releaseStartedAt = performance.now()
       await releaseBuiltinForTranscription()
+      const releaseMs = Math.round(performance.now() - releaseStartedAt)
       const text = await transcribe(blob)
       setRawTranscript(prev => prev ? prev + '\n\n' + text : text)
+      console.log('[pipeline] main transcription complete', {
+        releaseMs,
+        totalMs: Math.round(performance.now() - startedAt),
+        chars: text.length,
+      })
     } catch (err) {
       console.error('[App] Transcription failed:', err)
       setTranscribeError(true)
@@ -106,6 +118,7 @@ function App() {
     setRefineError(null)
     setIsRefining(true)
     setIsLoadingRefinementModel(false)
+    const startedAt = performance.now()
     const loadingTimer = setTimeout(() => {
       setIsLoadingRefinementModel(true)
     }, 2000)
@@ -114,6 +127,13 @@ function App() {
       const { system, user } = composePrompt({ intent: currentIntent, mode, transcript: rawTranscript })
       const output = await refine({ system, user, mode })
       setRefinedOutput(output)
+      console.log('[pipeline] main refinement complete', {
+        intent: currentIntent,
+        mode,
+        totalMs: Math.round(performance.now() - startedAt),
+        inputChars: rawTranscript.length,
+        outputChars: output.length,
+      })
     } catch (err) {
       console.error('[App] Refinement failed:', err)
       setRefineError(err.message)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Eraser, Mail, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
-import { resetTranscriber, preloadTranscriber, isTranscriberLoading } from '../services/transcribe'
+import { resetTranscriber, preloadTranscriber, isTranscriberLoading } from '../services/asr'
 import { Tooltip } from './Tooltip'
 
 const PROVIDER_OPTIONS = [
