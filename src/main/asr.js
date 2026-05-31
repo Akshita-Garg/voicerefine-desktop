@@ -33,6 +33,9 @@ function requireModelFile(modelDir, filename) {
 }
 
 function createWhisperTinyEnglishConfig(modelDir) {
+  const precision = process.env.VOICEREFINE_SHERPA_PRECISION === 'fp32' ? 'fp32' : 'int8';
+  const modelSuffix = precision === 'int8' ? '.int8' : '';
+
   return {
     featConfig: {
       sampleRate: 16000,
@@ -40,8 +43,8 @@ function createWhisperTinyEnglishConfig(modelDir) {
     },
     modelConfig: {
       whisper: {
-        encoder: requireModelFile(modelDir, 'tiny.en-encoder.onnx'),
-        decoder: requireModelFile(modelDir, 'tiny.en-decoder.onnx'),
+        encoder: requireModelFile(modelDir, `tiny.en-encoder${modelSuffix}.onnx`),
+        decoder: requireModelFile(modelDir, `tiny.en-decoder${modelSuffix}.onnx`),
         language: 'en',
         task: 'transcribe',
         tailPaddings: -1,
@@ -69,6 +72,7 @@ async function getRecognizer() {
     console.log('[asr-native] recognizer ready', {
       engine: 'sherpa-onnx-node',
       modelDir,
+      precision: process.env.VOICEREFINE_SHERPA_PRECISION === 'fp32' ? 'fp32' : 'int8',
       durationMs: Math.round(now() - startedAt),
     });
 
