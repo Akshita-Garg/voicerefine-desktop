@@ -3,7 +3,10 @@ import { Eraser, Mail, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import {
   currentAsrEngine,
+  currentNativeAsrModel,
   NATIVE_ASR_ENGINE,
+  NATIVE_ASR_MODEL_ACCURATE,
+  NATIVE_ASR_MODEL_FAST,
   resetTranscriber,
   preloadTranscriber,
   TRANSFORMERS_ASR_ENGINE,
@@ -38,11 +41,26 @@ const ASR_ENGINE_OPTIONS = [
   },
 ]
 
+const NATIVE_ASR_MODEL_OPTIONS = [
+  {
+    value: NATIVE_ASR_MODEL_FAST,
+    label: 'Fast',
+    badge: 'Default',
+    description: 'Whisper tiny int8. Lowest latency and lightest memory use for everyday dictation.',
+  },
+  {
+    value: NATIVE_ASR_MODEL_ACCURATE,
+    label: 'Accurate',
+    description: 'Quantized Cohere Transcribe through Sherpa. Better accuracy target, heavier model and longer load time.',
+  },
+]
+
 export function SettingsPanel({ open, onClose, onSaved }) {
   const [provider, setProvider]               = useState('builtin')
   const [apiKey, setApiKey]                   = useState('')
   const [intent, setIntent]                   = useState('clean')
   const [asrEngine, setAsrEngine]             = useState(NATIVE_ASR_ENGINE)
+  const [nativeAsrModel, setNativeAsrModel]   = useState(NATIVE_ASR_MODEL_FAST)
   const [transcriptionModel, setTranscriptionModel] = useState('high_accuracy')
   const [modelLoading, setModelLoading]       = useState(false)
 
@@ -60,6 +78,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     const storedIntent = localStorage.getItem('vr_intent')
     setIntent(storedIntent && INTENT_OPTIONS.some(o => o.value === storedIntent) ? storedIntent : 'clean')
     setAsrEngine(currentAsrEngine())
+    setNativeAsrModel(currentNativeAsrModel())
     setTranscriptionModel(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true' ? 'high_accuracy' : 'lightweight')
     setModelLoading(isTranscriberLoading())
     setKeyStatus('idle')
@@ -130,10 +149,16 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setModelLoading(false)
   }
 
+  const handleNativeAsrModelChange = (model) => {
+    setNativeAsrModel(model)
+    localStorage.setItem('vr_native_asr_model', model)
+  }
+
   const handleSave = () => {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_intent',  intent)
     localStorage.setItem('vr_asr_engine', asrEngine)
+    localStorage.setItem('vr_native_asr_model', nativeAsrModel)
     if (needsKey) {
       localStorage.setItem('vr_api_key', apiKey)
     } else {
@@ -271,6 +296,35 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               ))}
             </div>
           </section>
+
+          {asrEngine === NATIVE_ASR_ENGINE && (
+            <section>
+              <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Native Model</h3>
+              <div className="flex flex-col gap-2">
+                {NATIVE_ASR_MODEL_OPTIONS.map(({ value, label, badge, description }) => (
+                  <label key={value} className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="native-asr-model"
+                      value={value}
+                      checked={nativeAsrModel === value}
+                      onChange={() => handleNativeAsrModelChange(value)}
+                      className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                    />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
+                        {label}
+                        {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
+                      </span>
+                      <span className="text-xs text-[#8A766E] leading-snug">
+                        {description}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
 
           {asrEngine === TRANSFORMERS_ASR_ENGINE && (
             <section>

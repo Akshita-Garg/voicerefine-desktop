@@ -8,11 +8,19 @@ import {
 
 export const TRANSFORMERS_ASR_ENGINE = 'transformers-webgpu';
 export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
+export const NATIVE_ASR_MODEL_FAST = 'fast';
+export const NATIVE_ASR_MODEL_ACCURATE = 'accurate';
 
 export function currentAsrEngine() {
   return globalThis.localStorage?.getItem('vr_asr_engine') === TRANSFORMERS_ASR_ENGINE
     ? TRANSFORMERS_ASR_ENGINE
     : NATIVE_ASR_ENGINE;
+}
+
+export function currentNativeAsrModel() {
+  return globalThis.localStorage?.getItem('vr_native_asr_model') === NATIVE_ASR_MODEL_ACCURATE
+    ? NATIVE_ASR_MODEL_ACCURATE
+    : NATIVE_ASR_MODEL_FAST;
 }
 
 export function resetTranscriber() {
@@ -45,10 +53,12 @@ export async function transcribe(blob) {
   const result = await window.voicerefine.transcribeNative({
     samples: audio.samples,
     sampleRate: audio.sampleRate,
+    model: currentNativeAsrModel(),
   });
 
   console.log('[asr] native transcription complete', {
     engine: NATIVE_ASR_ENGINE,
+    model: result.model,
     totalMs: Math.round(performance.now() - startedAt),
     chars: result.text.length,
   });
