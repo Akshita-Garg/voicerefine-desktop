@@ -66,7 +66,7 @@ function getTranscriber() {
   return transcriberPromise;
 }
 
-async function blobToAudioSamples(blob) {
+export async function decodeAudioBlob(blob) {
   const startedAt = now();
   const arrayBuffer = await blob.arrayBuffer();
   const audioContext = new AudioContext({ sampleRate: 16000 });
@@ -79,7 +79,10 @@ async function blobToAudioSamples(blob) {
     audioSeconds: Number(audioBuffer.duration.toFixed(2)),
     sampleRate: audioBuffer.sampleRate,
   });
-  return audioBuffer.getChannelData(0);
+  return {
+    samples: audioBuffer.getChannelData(0),
+    sampleRate: audioBuffer.sampleRate,
+  };
 }
 
 export async function transcribe(blob) {
@@ -92,7 +95,7 @@ export async function transcribe(blob) {
   });
 
   const audioStartedAt = now();
-  const audio = await blobToAudioSamples(blob);
+  const audio = await decodeAudioBlob(blob);
   const audioDecodeMs = Math.round(now() - audioStartedAt);
 
   const modelStartedAt = now();
@@ -100,7 +103,7 @@ export async function transcribe(blob) {
   const modelWaitMs = Math.round(now() - modelStartedAt);
 
   const inferenceStartedAt = now();
-  const result = await transcriber(audio, INFERENCE_PARAMS[modelId]);
+  const result = await transcriber(audio.samples, INFERENCE_PARAMS[modelId]);
   const inferenceMs = Math.round(now() - inferenceStartedAt);
   const totalMs = Math.round(now() - startedAt);
 

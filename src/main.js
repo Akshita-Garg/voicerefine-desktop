@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { transcribeNative } from './main/asr.js';
 import { clearUnloadTimer, refineBuiltin, releaseBuiltinForTranscription, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
 
 if (started) {
@@ -197,6 +198,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('release-builtin-for-transcription', async () => {
     return await releaseBuiltinForTranscription();
+  });
+  ipcMain.handle('transcribe-native', async (_event, payload) => {
+    return await transcribeNative(payload);
   });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
