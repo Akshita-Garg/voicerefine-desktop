@@ -10,9 +10,9 @@ export const TRANSFORMERS_ASR_ENGINE = 'transformers-webgpu';
 export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 
 export function currentAsrEngine() {
-  return globalThis.localStorage?.getItem('vr_asr_engine') === NATIVE_ASR_ENGINE
-    ? NATIVE_ASR_ENGINE
-    : TRANSFORMERS_ASR_ENGINE;
+  return globalThis.localStorage?.getItem('vr_asr_engine') === TRANSFORMERS_ASR_ENGINE
+    ? TRANSFORMERS_ASR_ENGINE
+    : NATIVE_ASR_ENGINE;
 }
 
 export function resetTranscriber() {
