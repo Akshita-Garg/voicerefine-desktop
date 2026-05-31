@@ -13,13 +13,19 @@ export function useAudioRecorder() {
   const streamRef = useRef(null)
   const timerRef = useRef(null)
 
-  const stop = useCallback(() => {
+  const clearTimer = useCallback(() => {
     clearInterval(timerRef.current)
+    timerRef.current = null
+  }, [])
+
+  const stop = useCallback(() => {
+    clearTimer()
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop()
     }
     streamRef.current?.getTracks().forEach(t => t.stop())
-  }, [])
+    streamRef.current = null
+  }, [clearTimer])
 
   const start = useCallback(async () => {
     setError(null)
@@ -43,6 +49,7 @@ export function useAudioRecorder() {
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorderRef.current.mimeType })
         setAudioBlob(blob)
+        setCountdown(MAX_SECONDS)
         setState('idle')
       }
 
