@@ -4,9 +4,9 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    // Bundle the GGUF model with the installer so built-in refinement works offline.
+    // Bundle local models and sidecar binaries so offline ASR/refinement works.
     // extraResource items land in process.resourcesPath at runtime.
-    extraResource: ['resources/models'],
+    extraResource: ['resources/models', 'resources/bin'],
   },
   rebuildConfig: {},
   makers: [

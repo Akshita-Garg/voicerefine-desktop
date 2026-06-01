@@ -6,6 +6,7 @@ import {
   currentNativeAsrModel,
   NATIVE_ASR_ENGINE,
   NATIVE_ASR_MODEL_ACCURATE,
+  NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
   resetTranscriber,
   preloadTranscriber,
@@ -50,8 +51,13 @@ const NATIVE_ASR_MODEL_OPTIONS = [
   },
   {
     value: NATIVE_ASR_MODEL_ACCURATE,
-    label: 'Accurate',
+    label: 'Accurate INT8',
     description: 'Quantized Cohere Transcribe through Sherpa. Better accuracy target, heavier model and longer load time.',
+  },
+  {
+    value: NATIVE_ASR_MODEL_COHERE_Q4,
+    label: 'Accurate Q4',
+    description: 'Cohere Transcribe Q4 through CrispASR. Experimental sidecar path for comparing quality and latency.',
   },
 ]
 

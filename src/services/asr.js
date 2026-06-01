@@ -10,6 +10,7 @@ export const TRANSFORMERS_ASR_ENGINE = 'transformers-webgpu';
 export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 export const NATIVE_ASR_MODEL_FAST = 'fast';
 export const NATIVE_ASR_MODEL_ACCURATE = 'accurate';
+export const NATIVE_ASR_MODEL_COHERE_Q4 = 'cohere-q4';
 
 export function currentAsrEngine() {
   return globalThis.localStorage?.getItem('vr_asr_engine') === TRANSFORMERS_ASR_ENGINE
@@ -18,9 +19,10 @@ export function currentAsrEngine() {
 }
 
 export function currentNativeAsrModel() {
-  return globalThis.localStorage?.getItem('vr_native_asr_model') === NATIVE_ASR_MODEL_ACCURATE
-    ? NATIVE_ASR_MODEL_ACCURATE
-    : NATIVE_ASR_MODEL_FAST;
+  const stored = globalThis.localStorage?.getItem('vr_native_asr_model');
+  if (stored === NATIVE_ASR_MODEL_ACCURATE) return NATIVE_ASR_MODEL_ACCURATE;
+  if (stored === NATIVE_ASR_MODEL_COHERE_Q4) return NATIVE_ASR_MODEL_COHERE_Q4;
+  return NATIVE_ASR_MODEL_FAST;
 }
 
 export function resetTranscriber() {
