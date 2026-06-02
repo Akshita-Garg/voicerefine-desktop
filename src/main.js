@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, s
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { transcribeNative } from './main/asr.js';
-import { clearUnloadTimer, refineBuiltin, releaseBuiltinForTranscription, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
+import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
 
 if (started) {
   app.quit();
@@ -195,9 +195,6 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('warm-builtin', async () => {
     return await warmBuiltin();
-  });
-  ipcMain.handle('release-builtin-for-transcription', async () => {
-    return await releaseBuiltinForTranscription();
   });
   ipcMain.handle('transcribe-native', async (_event, payload) => {
     return await transcribeNative(payload);

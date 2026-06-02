@@ -8,20 +8,6 @@ const INTENTS = [
   { value: 'prepare', Icon: Mic2,   label: 'Prepare', description: "Spoken delivery. Improve cadence, confidence, and flow for something you'll say aloud." },
 ]
 
-const TRANSCRIPTION_OPTIONS = [
-  {
-    id: 'high_accuracy',
-    label: 'Higher accuracy',
-    badge: 'Recommended',
-    description: 'Best transcription quality, especially for proper nouns and technical terms. Requires a one-time download of ~1 GB. Works best on hardware from the last few years.',
-  },
-  {
-    id: 'lightweight',
-    label: 'Lightweight',
-    description: 'Smaller and faster. ~500 MB one-time download. Works on older hardware too, with slightly lower accuracy on technical content.',
-  },
-]
-
 const PROVIDERS = [
   { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Refinement runs locally on your device using a bundled model. No setup, no internet required.' },
   { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true,  description: 'Free API key from Google AI Studio (aistudio.google.com).' },
@@ -72,53 +58,7 @@ function Step1({ intent, onSelect, onContinue }) {
   )
 }
 
-function Step2({ model, onSelect, onContinue }) {
-  return (
-    <div className="flex flex-col items-center gap-8 w-full max-w-xl">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">Choose a transcription model</h1>
-        <p className="text-sm text-[#8A766E]">You can change this anytime in Settings.</p>
-      </div>
-
-      <div className="flex flex-col gap-3 w-full">
-        {TRANSCRIPTION_OPTIONS.map(({ id, label, badge, description }) => {
-          const selected = model === id
-          return (
-            <button
-              key={id}
-              onClick={() => onSelect(id)}
-              className={`text-left px-4 py-4 rounded-2xl border transition-all duration-150 ${
-                selected
-                  ? 'bg-[rgba(127,175,143,0.12)] border-[#7FAF8F]/50'
-                  : 'bg-[#E6CFC7] border-[rgba(58,47,42,0.08)] hover:border-[rgba(58,47,42,0.18)] hover:bg-[#DFC8BE]'
-              }`}
-              style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-[#3A2F2A]">{label}</span>
-                {badge && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">
-                    {badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#8A766E] leading-snug">{description}</p>
-            </button>
-          )
-        })}
-      </div>
-
-      <button
-        onClick={onContinue}
-        className="px-8 py-2.5 rounded-xl text-sm font-medium bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5] transition-colors duration-150"
-      >
-        Continue
-      </button>
-    </div>
-  )
-}
-
-function Step3({ onComplete }) {
+function Step2({ onComplete }) {
   const [provider, setProvider]   = useState('builtin')
   const [apiKey, setApiKey]       = useState('')
   const [status, setStatus]       = useState('idle') // 'idle' | 'checking' | 'valid' | 'rate_limited' | 'invalid'
@@ -258,7 +198,6 @@ function ValidationFeedback({ status, message, override, onOverride }) {
 export function Onboarding({ onComplete }) {
   const [step, setStep]                         = useState(1)
   const [intent, setIntent]                     = useState(null)
-  const [transcriptionModel, setTranscriptionModel] = useState('high_accuracy')
   const [fading, setFading]                     = useState(false)
   const fadeTimerRef                            = useRef(null)
 
@@ -269,12 +208,7 @@ export function Onboarding({ onComplete }) {
     setStep(2)
   }
 
-  const handleStep2Continue = () => {
-    localStorage.setItem('voicerefine.useHighQualityTranscription', transcriptionModel === 'high_accuracy' ? 'true' : 'false')
-    setStep(3)
-  }
-
-  const handleStep3Complete = () => {
+  const handleStep2Complete = () => {
     localStorage.setItem('vr_onboarding_done', 'true')
     setFading(true)
     fadeTimerRef.current = setTimeout(onComplete, 500)
@@ -288,12 +222,11 @@ export function Onboarding({ onComplete }) {
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
         <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">VoiceRefine</h1>
-        <span className="text-xs text-[#8A766E]">Step {step} of 3</span>
+        <span className="text-xs text-[#8A766E]">Step {step} of 2</span>
       </div>
 
       {step === 1 && <Step1 intent={intent} onSelect={setIntent} onContinue={handleStep1Continue} />}
-      {step === 2 && <Step2 model={transcriptionModel} onSelect={setTranscriptionModel} onContinue={handleStep2Continue} />}
-      {step === 3 && <Step3 onComplete={handleStep3Complete} />}
+      {step === 2 && <Step2 onComplete={handleStep2Complete} />}
     </div>
   )
 }

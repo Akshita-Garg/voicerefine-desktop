@@ -2,7 +2,6 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
 import { transcribe } from './services/asr'
-import { releaseBuiltinForTranscription } from './services/llm'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -67,16 +66,12 @@ function Overlay() {
 
         try {
           const startedAt = Date.now()
-          const releaseStartedAt = Date.now()
-          await releaseBuiltinForTranscription()
-          const releaseMs = Date.now() - releaseStartedAt
           const text = await transcribe(blob)
           setTranscript(text)
           setStatus('complete')
           window.voicerefine.overlayTranscriptionComplete({
             text,
             chars: text.length,
-            releaseMs,
             durationMs: Date.now() - startedAt,
           })
         } catch (err) {

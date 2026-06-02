@@ -1,22 +1,7 @@
-import {
-  decodeAudioBlob,
-  isTranscriberLoading as isTransformersTranscriberLoading,
-  preloadTranscriber as preloadTransformersTranscriber,
-  resetTranscriber as resetTransformersTranscriber,
-  transcribe as transcribeWithTransformers,
-} from './transcribe';
-
-export const TRANSFORMERS_ASR_ENGINE = 'transformers-webgpu';
 export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 export const NATIVE_ASR_MODEL_FAST = 'fast';
 export const NATIVE_ASR_MODEL_ACCURATE = 'accurate';
 export const NATIVE_ASR_MODEL_COHERE_Q4 = 'cohere-q4';
-
-export function currentAsrEngine() {
-  return globalThis.localStorage?.getItem('vr_asr_engine') === TRANSFORMERS_ASR_ENGINE
-    ? TRANSFORMERS_ASR_ENGINE
-    : NATIVE_ASR_ENGINE;
-}
 
 export function currentNativeAsrModel() {
   const stored = globalThis.localStorage?.getItem('vr_native_asr_model');
@@ -25,27 +10,33 @@ export function currentNativeAsrModel() {
   return NATIVE_ASR_MODEL_FAST;
 }
 
-export function resetTranscriber() {
-  resetTransformersTranscriber();
+function now() {
+  return globalThis.performance?.now ? globalThis.performance.now() : Date.now();
 }
 
-export function preloadTranscriber(onProgress) {
-  if (currentAsrEngine() === NATIVE_ASR_ENGINE) {
-    return Promise.resolve({ engine: NATIVE_ASR_ENGINE });
-  }
+async function decodeAudioBlob(blob) {
+  const startedAt = now();
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioContext = new AudioContext({ sampleRate: 16000 });
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  await audioContext.close();
 
-  return preloadTransformersTranscriber(onProgress);
-}
+  console.log('[asr] audio decoded', {
+    engine: NATIVE_ASR_ENGINE,
+    bytes: blob.size,
+    mimeType: blob.type,
+    durationMs: Math.round(now() - startedAt),
+    audioSeconds: Number(audioBuffer.duration.toFixed(2)),
+    sampleRate: audioBuffer.sampleRate,
+  });
 
-export function isTranscriberLoading() {
-  return currentAsrEngine() === TRANSFORMERS_ASR_ENGINE && isTransformersTranscriberLoading();
+  return {
+    samples: audioBuffer.getChannelData(0),
+    sampleRate: audioBuffer.sampleRate,
+  };
 }
 
 export async function transcribe(blob) {
-  if (currentAsrEngine() !== NATIVE_ASR_ENGINE) {
-    return await transcribeWithTransformers(blob);
-  }
-
   if (!window.voicerefine?.transcribeNative) {
     throw new Error('Native ASR bridge is unavailable.');
   }

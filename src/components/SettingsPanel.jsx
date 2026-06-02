@@ -2,16 +2,10 @@ import { useState, useEffect } from 'react'
 import { Eraser, Mail, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import {
-  currentAsrEngine,
   currentNativeAsrModel,
-  NATIVE_ASR_ENGINE,
   NATIVE_ASR_MODEL_ACCURATE,
   NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
-  resetTranscriber,
-  preloadTranscriber,
-  TRANSFORMERS_ASR_ENGINE,
-  isTranscriberLoading,
 } from '../services/asr'
 import { Tooltip } from './Tooltip'
 
@@ -26,20 +20,6 @@ const INTENT_OPTIONS = [
   { value: 'clean',   Icon: Eraser, label: 'Clean',   description: "Minimal edit. Fix speech artifacts while preserving your vocabulary, phrasing, order, and tone." },
   { value: 'compose', Icon: Mail,   label: 'Compose', description: "Ready-to-send writing. Smooth wording and structure while keeping your meaning and tone." },
   { value: 'prepare', Icon: Mic2,   label: 'Prepare', description: "Spoken delivery. Improve cadence, confidence, and flow for something you'll say aloud." },
-]
-
-const ASR_ENGINE_OPTIONS = [
-  {
-    value: NATIVE_ASR_ENGINE,
-    label: 'Native local',
-    badge: 'Default',
-    description: 'Fast offline transcription through the desktop ASR engine. Keeps audio local and avoids browser GPU contention.',
-  },
-  {
-    value: TRANSFORMERS_ASR_ENGINE,
-    label: 'WebGPU fallback',
-    description: 'Uses the older browser-based transcription path. Useful if the native engine has issues on your machine.',
-  },
 ]
 
 const NATIVE_ASR_MODEL_OPTIONS = [
@@ -65,10 +45,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [provider, setProvider]               = useState('builtin')
   const [apiKey, setApiKey]                   = useState('')
   const [intent, setIntent]                   = useState('clean')
-  const [asrEngine, setAsrEngine]             = useState(NATIVE_ASR_ENGINE)
   const [nativeAsrModel, setNativeAsrModel]   = useState(NATIVE_ASR_MODEL_FAST)
-  const [transcriptionModel, setTranscriptionModel] = useState('high_accuracy')
-  const [modelLoading, setModelLoading]       = useState(false)
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
   const [keyStatus, setKeyStatus] = useState('idle')
@@ -83,10 +60,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setApiKey(localStorage.getItem('vr_api_key')   ?? '')
     const storedIntent = localStorage.getItem('vr_intent')
     setIntent(storedIntent && INTENT_OPTIONS.some(o => o.value === storedIntent) ? storedIntent : 'clean')
-    setAsrEngine(currentAsrEngine())
     setNativeAsrModel(currentNativeAsrModel())
-    setTranscriptionModel(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true' ? 'high_accuracy' : 'lightweight')
-    setModelLoading(isTranscriberLoading())
     setKeyStatus('idle')
     setKeyError('')
     setOverride(false)
@@ -125,36 +99,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     keyStatus === 'rate_limited' ||
     override
 
-  const handleTranscriptionChange = async (model) => {
-    setTranscriptionModel(model)
-    localStorage.setItem('voicerefine.useHighQualityTranscription', model === 'high_accuracy' ? 'true' : 'false')
-    resetTranscriber()
-    setModelLoading(true)
-    try {
-      await preloadTranscriber()
-    } finally {
-      setModelLoading(false)
-    }
-  }
-
-  const handleAsrEngineChange = async (engine) => {
-    setAsrEngine(engine)
-    localStorage.setItem('vr_asr_engine', engine)
-    resetTranscriber()
-
-    if (engine === TRANSFORMERS_ASR_ENGINE) {
-      setModelLoading(true)
-      try {
-        await preloadTranscriber()
-      } finally {
-        setModelLoading(false)
-      }
-      return
-    }
-
-    setModelLoading(false)
-  }
-
   const handleNativeAsrModelChange = (model) => {
     setNativeAsrModel(model)
     localStorage.setItem('vr_native_asr_model', model)
@@ -163,7 +107,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const handleSave = () => {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_intent',  intent)
-    localStorage.setItem('vr_asr_engine', asrEngine)
     localStorage.setItem('vr_native_asr_model', nativeAsrModel)
     if (needsKey) {
       localStorage.setItem('vr_api_key', apiKey)
@@ -278,15 +221,14 @@ export function SettingsPanel({ open, onClose, onSaved }) {
           <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transcription</h3>
             <div className="flex flex-col gap-2">
-              {ASR_ENGINE_OPTIONS.map(({ value, label, badge, description }) => (
+              {NATIVE_ASR_MODEL_OPTIONS.map(({ value, label, badge, description }) => (
                 <label key={value} className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="radio"
-                    name="asr-engine"
+                    name="native-asr-model"
                     value={value}
-                    checked={asrEngine === value}
-                    onChange={() => handleAsrEngineChange(value)}
-                    disabled={modelLoading}
+                    checked={nativeAsrModel === value}
+                    onChange={() => handleNativeAsrModelChange(value)}
                     className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
                   />
                   <span className="flex flex-col gap-0.5">
@@ -302,68 +244,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               ))}
             </div>
           </section>
-
-          {asrEngine === NATIVE_ASR_ENGINE && (
-            <section>
-              <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Native Model</h3>
-              <div className="flex flex-col gap-2">
-                {NATIVE_ASR_MODEL_OPTIONS.map(({ value, label, badge, description }) => (
-                  <label key={value} className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="native-asr-model"
-                      value={value}
-                      checked={nativeAsrModel === value}
-                      onChange={() => handleNativeAsrModelChange(value)}
-                      className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-                    />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
-                        {label}
-                        {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
-                      </span>
-                      <span className="text-xs text-[#8A766E] leading-snug">
-                        {description}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {asrEngine === TRANSFORMERS_ASR_ENGINE && (
-            <section>
-              <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">WebGPU Model</h3>
-              <div className="flex flex-col gap-2">
-              {[
-                { id: 'high_accuracy', label: 'Higher accuracy', badge: 'Recommended', description: 'Best transcription quality, especially for proper nouns and technical terms. Requires a one-time download of ~1 GB. Works best on hardware from the last few years.' },
-                { id: 'lightweight',   label: 'Lightweight',                            description: 'Smaller and faster. ~500 MB one-time download. Works on older hardware too, with slightly lower accuracy on technical content.' },
-              ].map(({ id, label, badge, description }) => (
-                <label key={id} className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="transcription"
-                    value={id}
-                    checked={transcriptionModel === id}
-                    onChange={() => handleTranscriptionChange(id)}
-                    disabled={modelLoading}
-                    className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-                  />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
-                      {label}
-                      {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
-                    </span>
-                    <span className="text-xs text-[#8A766E] leading-snug">
-                      {modelLoading && transcriptionModel === id ? 'Downloading model…' : description}
-                    </span>
-                  </span>
-                </label>
-              ))}
-              </div>
-            </section>
-          )}
 
           {/* Intent */}
           <section>

@@ -4,9 +4,9 @@ import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
-import { transcribe, preloadTranscriber } from './services/asr'
+import { transcribe } from './services/asr'
 import { composePrompt } from './utils/composePrompt'
-import { refine, releaseBuiltinForTranscription } from './services/llm'
+import { refine } from './services/llm'
 
 const MODES = [
   { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean prose. Preserves the flow of what you said.' },
@@ -54,9 +54,7 @@ function App() {
   const [provider, setProvider]       = useState(readProvider)
   const [tipDismissed, setTipDismissed] = useState(false)
 
-  const [transcribeModelReady, setTranscribeModelReady] = useState(false)
-  const [transcribeProgress, setTranscribeProgress]     = useState(null) // 0-100 or null
-  const transcribeFilesRef = useRef({})
+  const transcribeModelReady = true
 
   const copyText = async (text, setCopied) => {
     try {
@@ -73,19 +71,6 @@ function App() {
   const [intentOpen, setIntentOpen]     = useState(false)
   const intentRef                       = useRef(null)
 
-  useEffect(() => {
-    if (!onboardingDone) return
-    preloadTranscriber((info) => {
-      transcribeFilesRef.current[info.file] = { loaded: info.loaded, total: info.total }
-      const files       = Object.values(transcribeFilesRef.current)
-      const totalBytes  = files.reduce((s, f) => s + f.total, 0)
-      const loadedBytes = files.reduce((s, f) => s + f.loaded, 0)
-      setTranscribeProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null)
-    })
-      .then(() => { setTranscribeModelReady(true); setTranscribeProgress(null) })
-      .catch(() => {})
-  }, [onboardingDone])
-
   const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
     setIsTranscribing(true)
@@ -95,13 +80,9 @@ function App() {
         bytes: blob.size,
         mimeType: blob.type,
       })
-      const releaseStartedAt = performance.now()
-      await releaseBuiltinForTranscription()
-      const releaseMs = Math.round(performance.now() - releaseStartedAt)
       const text = await transcribe(blob)
       setRawTranscript(prev => prev ? prev + '\n\n' + text : text)
       console.log('[pipeline] main transcription complete', {
-        releaseMs,
         totalMs: Math.round(performance.now() - startedAt),
         chars: text.length,
       })
@@ -196,33 +177,6 @@ function App() {
                 Dismiss
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Transcription model download banner */}
-        {!transcribeModelReady && (
-          <div
-            className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-4"
-            style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
-          >
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#7FAF8F] animate-pulse flex-shrink-0" />
-                <span className="text-sm font-medium text-[#4A7A5E]">Downloading transcription model</span>
-              </div>
-              {transcribeProgress !== null && (
-                <span className="text-sm tabular-nums text-[#4A7A5E] font-medium">{transcribeProgress}%</span>
-              )}
-            </div>
-            <div className="w-full h-1 rounded-full bg-[rgba(127,175,143,0.2)] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#7FAF8F] transition-all duration-500"
-                style={{ width: `${transcribeProgress ?? 0}%` }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-[#8A766E]">
-              This may take a moment — one-time download, won't happen again on future visits.
-            </p>
           </div>
         )}
 
