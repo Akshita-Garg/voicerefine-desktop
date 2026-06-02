@@ -6,6 +6,7 @@ import {
   NATIVE_ASR_MODEL_ACCURATE,
   NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
+  preloadNativeAsrModel,
 } from '../services/asr'
 import { Tooltip } from './Tooltip'
 
@@ -46,6 +47,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [apiKey, setApiKey]                   = useState('')
   const [intent, setIntent]                   = useState('clean')
   const [nativeAsrModel, setNativeAsrModel]   = useState(NATIVE_ASR_MODEL_FAST)
+  const [asrModelStatus, setAsrModelStatus]   = useState('idle')
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
   const [keyStatus, setKeyStatus] = useState('idle')
@@ -61,6 +63,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     const storedIntent = localStorage.getItem('vr_intent')
     setIntent(storedIntent && INTENT_OPTIONS.some(o => o.value === storedIntent) ? storedIntent : 'clean')
     setNativeAsrModel(currentNativeAsrModel())
+    setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
     setOverride(false)
@@ -99,9 +102,17 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     keyStatus === 'rate_limited' ||
     override
 
-  const handleNativeAsrModelChange = (model) => {
+  const handleNativeAsrModelChange = async (model) => {
     setNativeAsrModel(model)
     localStorage.setItem('vr_native_asr_model', model)
+    setAsrModelStatus('loading')
+    try {
+      await preloadNativeAsrModel(model)
+      setAsrModelStatus('ready')
+    } catch (err) {
+      console.warn('[settings] ASR model preload failed', err)
+      setAsrModelStatus('error')
+    }
   }
 
   const handleSave = () => {
@@ -243,6 +254,15 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 </label>
               ))}
             </div>
+            {asrModelStatus === 'loading' && (
+              <p className="mt-2 text-xs text-[#8A766E]">Loading selected transcription model...</p>
+            )}
+            {asrModelStatus === 'ready' && (
+              <p className="mt-2 text-xs text-[#5C8F70]">Selected transcription model is ready.</p>
+            )}
+            {asrModelStatus === 'error' && (
+              <p className="mt-2 text-xs text-red-700">Could not preload the selected transcription model.</p>
+            )}
           </section>
 
           {/* Intent */}

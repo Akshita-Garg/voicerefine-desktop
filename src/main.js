@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { transcribeNative } from './main/asr.js';
+import { preloadNativeAsrModel, transcribeNative, unloadNativeAsrModels } from './main/asr.js';
 import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
 
 if (started) {
@@ -199,6 +199,12 @@ app.whenReady().then(() => {
   ipcMain.handle('transcribe-native', async (_event, payload) => {
     return await transcribeNative(payload);
   });
+  ipcMain.handle('preload-native-asr-model', async (_event, payload) => {
+    return await preloadNativeAsrModel(payload);
+  });
+  ipcMain.handle('unload-native-asr-models', async (_event, payload) => {
+    return await unloadNativeAsrModels(payload);
+  });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
     if (pendingOverlayCommand) {
@@ -250,6 +256,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   clearUnloadTimer();
   void unloadBuiltinModel();
+  void unloadNativeAsrModels();
 });
 
 app.on('will-quit', () => {

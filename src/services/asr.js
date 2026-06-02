@@ -10,6 +10,28 @@ export function currentNativeAsrModel() {
   return NATIVE_ASR_MODEL_FAST;
 }
 
+export async function preloadNativeAsrModel(model = currentNativeAsrModel()) {
+  if (!window.voicerefine?.preloadNativeAsrModel) {
+    throw new Error('Native ASR preload bridge is unavailable.');
+  }
+
+  const startedAt = performance.now();
+  const result = await window.voicerefine.preloadNativeAsrModel({ model });
+  console.log('[asr] native model preload complete', {
+    model: result.model,
+    totalMs: Math.round(performance.now() - startedAt),
+  });
+  return result;
+}
+
+export async function unloadNativeAsrModels(except = null) {
+  if (!window.voicerefine?.unloadNativeAsrModels) {
+    throw new Error('Native ASR unload bridge is unavailable.');
+  }
+
+  return await window.voicerefine.unloadNativeAsrModels({ except });
+}
+
 function now() {
   return globalThis.performance?.now ? globalThis.performance.now() : Date.now();
 }

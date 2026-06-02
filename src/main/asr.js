@@ -1,7 +1,8 @@
 import { app } from 'electron';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -14,6 +15,8 @@ const NATIVE_MODEL_ACCURATE = 'accurate';
 const NATIVE_MODEL_COHERE_Q4 = 'cohere-q4';
 const recognizers = new Map();
 const recognizerPromises = new Map();
+let crispServer = null;
+let crispServerPromise = null;
 
 function now() {
   return performance.now();
@@ -51,6 +54,10 @@ function getCohereQ4ModelPath() {
   }
 
   return path.join(getModelRoot(), 'cohere-transcribe-03-2026-GGUF', 'cohere-transcribe-q4_k.gguf');
+}
+
+function getCrispAsrServerPort() {
+  return Math.max(1, Number(process.env.VOICEREFINE_CRISPASR_PORT || 51234));
 }
 
 function getCrispAsrPath() {
@@ -188,8 +195,176 @@ function cleanCrispAsrOutput(stdout) {
     .trim();
 }
 
+function waitForPort(port, timeoutMs = 60000) {
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      const socket = net.createConnection({ host: '127.0.0.1', port });
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve();
+      });
+      socket.once('error', () => {
+        socket.destroy();
+        if (Date.now() - startedAt > timeoutMs) {
+          reject(new Error(`CrispASR server did not become ready on port ${port}`));
+          return;
+        }
+        setTimeout(attempt, 250);
+      });
+    };
+
+    attempt();
+  });
+}
+
+async function startCrispAsrServer() {
+  if (crispServer?.process && !crispServer.process.killed) return crispServer;
+  if (crispServerPromise) return await crispServerPromise;
+
+  crispServerPromise = (async () => {
+    const startedAt = now();
+    const binPath = getCrispAsrPath();
+    const modelPath = getCohereQ4ModelPath();
+    const port = getCrispAsrServerPort();
+
+    if (!fs.existsSync(binPath)) throw new Error(`CrispASR binary missing: ${binPath}`);
+    if (!fs.existsSync(modelPath)) throw new Error(`Cohere Q4 model missing: ${modelPath}`);
+
+    const child = spawn(binPath, [
+      '--server',
+      '--backend', 'cohere',
+      '--model', modelPath,
+      '--language', 'en',
+      '--threads', String(Math.max(1, Number(process.env.VOICEREFINE_CRISPASR_THREADS || 8))),
+      '--host', '127.0.0.1',
+      '--port', String(port),
+      '--no-prints',
+      '--no-timestamps',
+    ], {
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    child.stdout?.on('data', chunk => {
+      const message = chunk.toString().trim();
+      if (message) console.log('[asr-crisp-server]', message);
+    });
+    child.stderr?.on('data', chunk => {
+      const message = chunk.toString().trim();
+      if (message) console.warn('[asr-crisp-server]', message);
+    });
+    child.once('exit', (code, signal) => {
+      console.log('[asr-crisp-server] exited', { code, signal });
+      if (crispServer?.process === child) crispServer = null;
+    });
+
+    crispServer = { process: child, port };
+    await waitForPort(port, Number(process.env.VOICEREFINE_CRISPASR_START_TIMEOUT_MS || 60000));
+
+    console.log('[asr-crisp-server] ready', {
+      nativeModel: NATIVE_MODEL_COHERE_Q4,
+      port,
+      durationMs: Math.round(now() - startedAt),
+    });
+
+    return crispServer;
+  })();
+
+  try {
+    return await crispServerPromise;
+  } finally {
+    crispServerPromise = null;
+  }
+}
+
+async function stopCrispAsrServer() {
+  const server = crispServer;
+  crispServer = null;
+
+  if (!server?.process || server.process.killed) return;
+
+  console.log('[asr-crisp-server] stopping');
+  server.process.kill();
+}
+
+function parseCrispServerResponse(body, contentType) {
+  const text = body.trim();
+  if (!text) return '';
+
+  if (contentType.includes('application/json') || text.startsWith('{')) {
+    try {
+      const json = JSON.parse(text);
+      return (json.text ?? json.transcription ?? json.result ?? text).trim();
+    } catch {
+      return text;
+    }
+  }
+
+  return cleanCrispAsrOutput(text);
+}
+
+async function postToCrispServer(server, wavBuffer) {
+  const endpoints = ['/v1/audio/transcriptions', '/inference'];
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const form = new FormData();
+      form.append('file', new Blob([wavBuffer], { type: 'audio/wav' }), 'recording.wav');
+      form.append('language', 'en');
+
+      const response = await fetch(`http://127.0.0.1:${server.port}${endpoint}`, {
+        method: 'POST',
+        body: form,
+      });
+      const body = await response.text();
+
+      if (!response.ok) {
+        lastError = new Error(`CrispASR server ${endpoint} failed: ${response.status} ${body}`);
+        continue;
+      }
+
+      return parseCrispServerResponse(body, response.headers.get('content-type') ?? '');
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError ?? new Error('CrispASR server transcription failed.');
+}
+
 async function transcribeWithCrispAsr(samples, sampleRate) {
   const startedAt = now();
+  const wavBuffer = createWavBuffer(samples, sampleRate);
+
+  try {
+    const server = await startCrispAsrServer();
+    const inferenceStartedAt = now();
+    const text = await postToCrispServer(server, wavBuffer);
+
+    console.log('[asr-crisp] transcription complete', {
+      engine: 'crispasr-server',
+      nativeModel: NATIVE_MODEL_COHERE_Q4,
+      audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
+      inferenceMs: Math.round(now() - inferenceStartedAt),
+      totalMs: Math.round(now() - startedAt),
+      chars: text.length,
+    });
+
+    return {
+      text,
+      engine: 'crispasr-server',
+      model: NATIVE_MODEL_COHERE_Q4,
+    };
+  } catch (err) {
+    console.warn('[asr-crisp] server transcription failed; falling back to one-shot CLI', err);
+    return await transcribeWithCrispAsrCli(samples, sampleRate, startedAt);
+  }
+}
+
+async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now()) {
   const binPath = getCrispAsrPath();
   const modelPath = getCohereQ4ModelPath();
 
@@ -220,7 +395,7 @@ async function transcribeWithCrispAsr(samples, sampleRate) {
     if (!text && stderr) console.warn('[asr-crisp] empty stdout', stderr.trim());
 
     console.log('[asr-crisp] transcription complete', {
-      engine: 'crispasr',
+      engine: 'crispasr-cli',
       nativeModel: NATIVE_MODEL_COHERE_Q4,
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
@@ -230,12 +405,65 @@ async function transcribeWithCrispAsr(samples, sampleRate) {
 
     return {
       text,
-      engine: 'crispasr',
+      engine: 'crispasr-cli',
       model: NATIVE_MODEL_COHERE_Q4,
     };
   } finally {
     await fs.promises.rm(tempDir, { recursive: true, force: true });
   }
+}
+
+async function unloadSherpaRecognizer(model) {
+  const nativeModel = normalizeNativeModel(model);
+  recognizerPromises.delete(nativeModel);
+  const recognizer = recognizers.get(nativeModel);
+  recognizers.delete(nativeModel);
+
+  if (!recognizer) return false;
+
+  recognizer.dispose?.();
+  recognizer.free?.();
+  recognizer.close?.();
+  if (global.gc) global.gc();
+
+  console.log('[asr-native] recognizer unloaded', { nativeModel });
+  return true;
+}
+
+export async function unloadNativeAsrModels({ except } = {}) {
+  const keepModel = except ? normalizeNativeModel(except) : null;
+  const unloaded = [];
+
+  for (const model of Array.from(recognizers.keys())) {
+    if (model === keepModel) continue;
+    if (await unloadSherpaRecognizer(model)) unloaded.push(model);
+  }
+
+  if (keepModel !== NATIVE_MODEL_COHERE_Q4) {
+    await stopCrispAsrServer();
+  }
+
+  return { unloaded, kept: keepModel };
+}
+
+export async function preloadNativeAsrModel({ model } = {}) {
+  const nativeModel = normalizeNativeModel(model);
+  const startedAt = now();
+
+  await unloadNativeAsrModels({ except: nativeModel });
+
+  if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
+    await startCrispAsrServer();
+  } else {
+    await getRecognizer(nativeModel);
+  }
+
+  return {
+    model: nativeModel,
+    durationMs: Math.round(now() - startedAt),
+    loaded: Array.from(recognizers.keys()),
+    crispServerReady: !!crispServer,
+  };
 }
 
 async function getRecognizer(model) {
