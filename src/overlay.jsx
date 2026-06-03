@@ -4,6 +4,7 @@ import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
 import { transcribe } from './services/asr'
 import { refine } from './services/llm'
 import { composeShortcutPrompt } from './utils/composePrompt'
+import { calculateShortcutMaxTokens } from './utils/refinementBudget'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -45,9 +46,7 @@ async function refineForPaste(transcript) {
   const settings = await readOverlayRefinementSettings()
   const { intent, mode } = settings
   const { system, user } = composeShortcutPrompt({ intent, mode, transcript })
-  const transcriptWordCount = transcript.split(/\s+/).filter(Boolean).length
-  const budgetMultiplier = intent === 'clean' ? 3 : 2.25
-  const maxTokens = Math.min(384, Math.max(96, Math.ceil(transcriptWordCount * budgetMultiplier)))
+  const maxTokens = calculateShortcutMaxTokens(transcript, { intent })
   const output = await refine({ system, user, mode, providerConfig: settings, maxTokens })
   return {
     intent,

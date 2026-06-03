@@ -226,7 +226,7 @@ async function runRefinement(systemMessage, userMessage, options = {}) {
     });
 
     const maxTokens = Number.isInteger(options.maxTokens)
-      ? Math.min(768, Math.max(16, options.maxTokens))
+      ? Math.min(1024, Math.max(16, options.maxTokens))
       : calculateMaxTokens(userMessage);
     const startedAt = now();
 
