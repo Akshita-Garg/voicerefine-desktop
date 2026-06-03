@@ -58,7 +58,7 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    preloadNativeAsrModel(currentNativeAsrModel(), { allowServerRuntime: false }).catch(err => {
+    preloadNativeAsrModel(currentNativeAsrModel()).catch(err => {
       if (!cancelled) console.warn('[asr] default model preload failed', err)
     })
     return () => {

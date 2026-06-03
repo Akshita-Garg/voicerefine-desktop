@@ -12,10 +12,9 @@ const execFileAsync = promisify(execFile);
 
 const NATIVE_MODEL_FAST = 'fast';
 const NATIVE_MODEL_PARAKEET_Q4 = 'parakeet-q4';
-const NATIVE_MODEL_ACCURATE = 'accurate';
 const NATIVE_MODEL_COHERE_Q4 = 'cohere-q4';
-const COHERE_Q4_RUNTIME_CLI = 'cli';
-const COHERE_Q4_RUNTIME_SERVER = 'server';
+const PARAKEET_Q4_RUNTIME_CLI = 'cli';
+const PARAKEET_Q4_RUNTIME_SERVER = 'server';
 const recognizers = new Map();
 const recognizerPromises = new Map();
 let crispServer = null;
@@ -41,14 +40,6 @@ function getWhisperModelDir() {
   }
 
   return path.join(getModelRoot(), 'sherpa-onnx-whisper-tiny.en');
-}
-
-function getCohereModelDir() {
-  if (process.env.VOICEREFINE_SHERPA_COHERE_MODEL_DIR) {
-    return process.env.VOICEREFINE_SHERPA_COHERE_MODEL_DIR;
-  }
-
-  return path.join(getModelRoot(), 'sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01');
 }
 
 function getCohereQ4ModelPath() {
@@ -126,49 +117,18 @@ function createWhisperTinyEnglishConfig(modelDir) {
   };
 }
 
-function createCohereTranscribeConfig(modelDir) {
-  return {
-    featConfig: {
-      sampleRate: 16000,
-      featureDim: 128,
-    },
-    modelConfig: {
-      cohereTranscribe: {
-        encoder: requireModelFile(modelDir, ['encoder.int8.onnx', 'cohere-encoder.int8.onnx']),
-        decoder: requireModelFile(modelDir, ['decoder.int8.onnx', 'cohere-decoder.int8.onnx']),
-        language: 'en',
-        usePunct: 1,
-        useItn: 1,
-      },
-      tokens: requireModelFile(modelDir, 'tokens.txt'),
-      numThreads: Math.max(1, Number(process.env.VOICEREFINE_SHERPA_THREADS || 4)),
-      debug: false,
-      provider: 'cpu',
-    },
-  };
-}
-
 function normalizeNativeModel(model) {
   if (model === NATIVE_MODEL_PARAKEET_Q4) return NATIVE_MODEL_PARAKEET_Q4;
-  if (model === NATIVE_MODEL_ACCURATE) return NATIVE_MODEL_ACCURATE;
   if (model === NATIVE_MODEL_COHERE_Q4) return NATIVE_MODEL_COHERE_Q4;
   return NATIVE_MODEL_FAST;
 }
 
-function normalizeCohereQ4Runtime(runtime) {
-  if (runtime === COHERE_Q4_RUNTIME_SERVER) return COHERE_Q4_RUNTIME_SERVER;
-  return COHERE_Q4_RUNTIME_CLI;
+function normalizeParakeetQ4Runtime(runtime) {
+  if (runtime === PARAKEET_Q4_RUNTIME_SERVER) return PARAKEET_Q4_RUNTIME_SERVER;
+  return PARAKEET_Q4_RUNTIME_CLI;
 }
 
 function getModelConfig(model) {
-  if (model === NATIVE_MODEL_ACCURATE) {
-    return {
-      label: 'cohere-transcribe-int8',
-      modelDir: getCohereModelDir(),
-      config: createCohereTranscribeConfig,
-    };
-  }
-
   return {
     label: 'whisper-tiny-en-int8',
     modelDir: getWhisperModelDir(),
@@ -263,23 +223,45 @@ function waitForPort(port, child, timeoutMs = 15000) {
   });
 }
 
-async function startCrispAsrServer() {
+function getCrispServerConfig(model) {
+  if (model === NATIVE_MODEL_PARAKEET_Q4) {
+    return {
+      nativeModel: NATIVE_MODEL_PARAKEET_Q4,
+      backend: 'parakeet',
+      modelPath: getParakeetQ4ModelPath(),
+    };
+  }
+
+  return {
+    nativeModel: NATIVE_MODEL_COHERE_Q4,
+    backend: 'cohere',
+    modelPath: getCohereQ4ModelPath(),
+  };
+}
+
+async function startCrispAsrServer(model) {
+  const config = getCrispServerConfig(model);
+  if (crispServer?.process && !crispServer.process.killed && crispServer.nativeModel === config.nativeModel) {
+    return crispServer;
+  }
+  if (crispServer?.process && crispServer.nativeModel !== config.nativeModel) {
+    await stopCrispAsrServer();
+  }
   if (crispServer?.process && !crispServer.process.killed) return crispServer;
   if (crispServerPromise) return await crispServerPromise;
 
   crispServerPromise = (async () => {
     const startedAt = now();
     const binPath = getCrispAsrPath();
-    const modelPath = getCohereQ4ModelPath();
     const port = getCrispAsrServerPort();
 
     if (!fs.existsSync(binPath)) throw new Error(`CrispASR binary missing: ${binPath}`);
-    if (!fs.existsSync(modelPath)) throw new Error(`Cohere Q4 model missing: ${modelPath}`);
+    if (!fs.existsSync(config.modelPath)) throw new Error(`CrispASR model missing: ${config.modelPath}`);
 
     const child = spawn(binPath, [
       '--server',
-      '--backend', 'cohere',
-      '--model', modelPath,
+      '--backend', config.backend,
+      '--model', config.modelPath,
       '--language', 'en',
       '--threads', String(Math.max(1, Number(process.env.VOICEREFINE_CRISPASR_THREADS || 8))),
       '--host', '127.0.0.1',
@@ -304,11 +286,12 @@ async function startCrispAsrServer() {
       if (crispServer?.process === child) crispServer = null;
     });
 
-    crispServer = { process: child, port };
+    crispServer = { process: child, port, nativeModel: config.nativeModel };
     await waitForPort(port, child, Number(process.env.VOICEREFINE_CRISPASR_START_TIMEOUT_MS || 15000));
 
     console.log('[asr-crisp-server] ready', {
-      nativeModel: NATIVE_MODEL_COHERE_Q4,
+      nativeModel: config.nativeModel,
+      backend: config.backend,
       port,
       durationMs: Math.round(now() - startedAt),
     });
@@ -382,19 +365,19 @@ async function postToCrispServer(server, wavBuffer) {
   throw lastError ?? new Error('CrispASR server transcription failed.');
 }
 
-async function transcribeWithCrispAsrServer(samples, sampleRate) {
+async function transcribeWithCrispAsrServer(samples, sampleRate, nativeModel) {
   const startedAt = now();
   const wavBuffer = createWavBuffer(samples, sampleRate);
 
   try {
-    const server = await startCrispAsrServer();
+    const server = await startCrispAsrServer(nativeModel);
     const inferenceStartedAt = now();
     const text = await postToCrispServer(server, wavBuffer);
 
     console.log('[asr-crisp] transcription complete', {
       engine: 'crispasr-server',
-      nativeModel: NATIVE_MODEL_COHERE_Q4,
-      runtime: COHERE_Q4_RUNTIME_SERVER,
+      nativeModel,
+      runtime: PARAKEET_Q4_RUNTIME_SERVER,
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
       totalMs: Math.round(now() - startedAt),
@@ -404,11 +387,14 @@ async function transcribeWithCrispAsrServer(samples, sampleRate) {
     return {
       text,
       engine: 'crispasr-server',
-      model: NATIVE_MODEL_COHERE_Q4,
-      runtime: COHERE_Q4_RUNTIME_SERVER,
+      model: nativeModel,
+      runtime: PARAKEET_Q4_RUNTIME_SERVER,
     };
   } catch (err) {
-    console.warn('[asr-crisp] server transcription failed; falling back to one-shot CLI', err);
+    console.warn('[asr-crisp] server transcription failed', err);
+    if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
+      return await transcribeWithParakeetCli(samples, sampleRate, startedAt);
+    }
     return await transcribeWithCrispAsrCli(samples, sampleRate, startedAt);
   }
 }
@@ -446,7 +432,7 @@ async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now())
     console.log('[asr-crisp] transcription complete', {
       engine: 'crispasr-cli',
       nativeModel: NATIVE_MODEL_COHERE_Q4,
-      runtime: COHERE_Q4_RUNTIME_CLI,
+      runtime: PARAKEET_Q4_RUNTIME_CLI,
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
       totalMs: Math.round(now() - startedAt),
@@ -457,7 +443,7 @@ async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now())
       text,
       engine: 'crispasr-cli',
       model: NATIVE_MODEL_COHERE_Q4,
-      runtime: COHERE_Q4_RUNTIME_CLI,
+      runtime: PARAKEET_Q4_RUNTIME_CLI,
     };
   } finally {
     await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -541,40 +527,40 @@ export async function unloadNativeAsrModels({ except } = {}) {
     if (await unloadSherpaRecognizer(model)) unloaded.push(model);
   }
 
-  if (keepModel !== NATIVE_MODEL_COHERE_Q4) {
+  if (keepModel !== NATIVE_MODEL_COHERE_Q4 && keepModel !== NATIVE_MODEL_PARAKEET_Q4) {
     await stopCrispAsrServer();
   }
 
   return { unloaded, kept: keepModel };
 }
 
-export async function preloadNativeAsrModel({ model, cohereQ4Runtime } = {}) {
+export async function preloadNativeAsrModel({ model, parakeetQ4Runtime } = {}) {
   const nativeModel = normalizeNativeModel(model);
   const startedAt = now();
 
   await unloadNativeAsrModels({ except: nativeModel });
 
   if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
-    await stopCrispAsrServer();
-    if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
-    if (!fs.existsSync(getParakeetQ4ModelPath())) throw new Error(`Parakeet Q4 model missing: ${getParakeetQ4ModelPath()}`);
-  } else if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
-    const runtime = normalizeCohereQ4Runtime(cohereQ4Runtime);
-    if (runtime === COHERE_Q4_RUNTIME_SERVER) {
-      await startCrispAsrServer();
+    const runtime = normalizeParakeetQ4Runtime(parakeetQ4Runtime);
+    if (runtime === PARAKEET_Q4_RUNTIME_SERVER) {
+      await startCrispAsrServer(NATIVE_MODEL_PARAKEET_Q4);
     } else {
       await stopCrispAsrServer();
       if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
-      if (!fs.existsSync(getCohereQ4ModelPath())) throw new Error(`Cohere Q4 model missing: ${getCohereQ4ModelPath()}`);
+      if (!fs.existsSync(getParakeetQ4ModelPath())) throw new Error(`Parakeet Q4 model missing: ${getParakeetQ4ModelPath()}`);
     }
+  } else if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
+    await stopCrispAsrServer();
+    if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
+    if (!fs.existsSync(getCohereQ4ModelPath())) throw new Error(`Cohere Q4 model missing: ${getCohereQ4ModelPath()}`);
   } else {
     await getRecognizer(nativeModel);
   }
 
   return {
     model: nativeModel,
-    cohereQ4Runtime: nativeModel === NATIVE_MODEL_COHERE_Q4
-      ? normalizeCohereQ4Runtime(cohereQ4Runtime)
+    parakeetQ4Runtime: nativeModel === NATIVE_MODEL_PARAKEET_Q4
+      ? normalizeParakeetQ4Runtime(parakeetQ4Runtime)
       : null,
     durationMs: Math.round(now() - startedAt),
     loaded: Array.from(recognizers.keys()),
@@ -600,9 +586,7 @@ async function getRecognizer(model) {
       nativeModel,
       model: modelConfig.label,
       modelDir: modelConfig.modelDir,
-      precision: nativeModel === NATIVE_MODEL_ACCURATE
-        ? 'int8'
-        : process.env.VOICEREFINE_SHERPA_PRECISION === 'fp32' ? 'fp32' : 'int8',
+      precision: process.env.VOICEREFINE_SHERPA_PRECISION === 'fp32' ? 'fp32' : 'int8',
       durationMs: Math.round(now() - startedAt),
     });
 
@@ -619,22 +603,22 @@ async function getRecognizer(model) {
   }
 }
 
-export async function transcribeNative({ samples, sampleRate, model, cohereQ4Runtime }) {
+export async function transcribeNative({ samples, sampleRate, model, parakeetQ4Runtime }) {
   const startedAt = now();
   const nativeModel = normalizeNativeModel(model);
   const typedSamples = samples instanceof Float32Array ? samples : new Float32Array(samples);
 
   if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
-    const runtime = normalizeCohereQ4Runtime(cohereQ4Runtime);
-    if (runtime === COHERE_Q4_RUNTIME_SERVER) {
-      return await transcribeWithCrispAsrServer(typedSamples, sampleRate);
-    }
-
     await stopCrispAsrServer();
     return await transcribeWithCrispAsrCli(typedSamples, sampleRate, startedAt);
   }
 
   if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
+    const runtime = normalizeParakeetQ4Runtime(parakeetQ4Runtime);
+    if (runtime === PARAKEET_Q4_RUNTIME_SERVER) {
+      return await transcribeWithCrispAsrServer(typedSamples, sampleRate, NATIVE_MODEL_PARAKEET_Q4);
+    }
+
     await stopCrispAsrServer();
     return await transcribeWithParakeetCli(typedSamples, sampleRate, startedAt);
   }

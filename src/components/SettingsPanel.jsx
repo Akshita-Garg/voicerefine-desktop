@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react'
 import { Eraser, Mail, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import {
-  COHERE_Q4_RUNTIME_CLI,
-  COHERE_Q4_RUNTIME_SERVER,
   currentNativeAsrModel,
-  currentCohereQ4Runtime,
-  NATIVE_ASR_MODEL_ACCURATE,
+  currentParakeetQ4Runtime,
   NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
   NATIVE_ASR_MODEL_PARAKEET_Q4,
+  PARAKEET_Q4_RUNTIME_CLI,
+  PARAKEET_Q4_RUNTIME_SERVER,
   preloadNativeAsrModel,
 } from '../services/asr'
 import { Tooltip } from './Tooltip'
@@ -41,28 +40,23 @@ const NATIVE_ASR_MODEL_OPTIONS = [
     description: 'Parakeet 0.6B Q4 through CrispASR. Targeting better accuracy than Whisper Tiny with lower latency than Cohere.',
   },
   {
-    value: NATIVE_ASR_MODEL_ACCURATE,
-    label: 'Accurate INT8',
-    description: 'Quantized Cohere Transcribe through Sherpa. Better accuracy target, heavier model and longer load time.',
-  },
-  {
     value: NATIVE_ASR_MODEL_COHERE_Q4,
     label: 'Accurate Q4',
-    description: 'Cohere Transcribe Q4 through CrispASR. Experimental sidecar path for comparing quality and latency.',
+    description: 'Cohere Transcribe Q4 through CrispASR CLI. Highest-quality local option we are keeping for comparison.',
   },
 ]
 
-const COHERE_Q4_RUNTIME_OPTIONS = [
+const PARAKEET_Q4_RUNTIME_OPTIONS = [
   {
-    value: COHERE_Q4_RUNTIME_CLI,
+    value: PARAKEET_Q4_RUNTIME_CLI,
     label: 'CLI',
     badge: 'Default',
-    description: 'Starts CrispASR per transcription. Best baseline for latency comparison.',
+    description: 'Starts CrispASR per transcription. Lower idle RAM and simplest behavior.',
   },
   {
-    value: COHERE_Q4_RUNTIME_SERVER,
+    value: PARAKEET_Q4_RUNTIME_SERVER,
     label: 'Server',
-    description: 'Keeps CrispASR running as a local server. Useful to compare warm persistent Q4 performance.',
+    description: 'Keeps Parakeet warm in a local server. Useful for testing faster repeated dictation.',
   },
 ]
 
@@ -71,7 +65,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [apiKey, setApiKey]                   = useState('')
   const [intent, setIntent]                   = useState('clean')
   const [nativeAsrModel, setNativeAsrModel]   = useState(NATIVE_ASR_MODEL_FAST)
-  const [cohereQ4Runtime, setCohereQ4Runtime] = useState(COHERE_Q4_RUNTIME_CLI)
+  const [parakeetQ4Runtime, setParakeetQ4Runtime] = useState(PARAKEET_Q4_RUNTIME_CLI)
   const [asrModelStatus, setAsrModelStatus]   = useState('idle')
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
@@ -88,7 +82,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     const storedIntent = localStorage.getItem('vr_intent')
     setIntent(storedIntent && INTENT_OPTIONS.some(o => o.value === storedIntent) ? storedIntent : 'clean')
     setNativeAsrModel(currentNativeAsrModel())
-    setCohereQ4Runtime(currentCohereQ4Runtime())
+    setParakeetQ4Runtime(currentParakeetQ4Runtime())
     setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
@@ -141,17 +135,17 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     }
   }
 
-  const handleCohereQ4RuntimeChange = async (runtime) => {
-    setCohereQ4Runtime(runtime)
-    localStorage.setItem('vr_cohere_q4_runtime', runtime)
-    if (nativeAsrModel !== NATIVE_ASR_MODEL_COHERE_Q4) return
+  const handleParakeetQ4RuntimeChange = async (runtime) => {
+    setParakeetQ4Runtime(runtime)
+    localStorage.setItem('vr_parakeet_q4_runtime', runtime)
+    if (nativeAsrModel !== NATIVE_ASR_MODEL_PARAKEET_Q4) return
 
     setAsrModelStatus('loading')
     try {
-      await preloadNativeAsrModel(NATIVE_ASR_MODEL_COHERE_Q4)
+      await preloadNativeAsrModel(NATIVE_ASR_MODEL_PARAKEET_Q4)
       setAsrModelStatus('ready')
     } catch (err) {
-      console.warn('[settings] Q4 runtime preload failed', err)
+      console.warn('[settings] Parakeet runtime preload failed', err)
       setAsrModelStatus('error')
     }
   }
@@ -160,7 +154,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_intent',  intent)
     localStorage.setItem('vr_native_asr_model', nativeAsrModel)
-    localStorage.setItem('vr_cohere_q4_runtime', cohereQ4Runtime)
+    localStorage.setItem('vr_parakeet_q4_runtime', parakeetQ4Runtime)
     if (needsKey) {
       localStorage.setItem('vr_api_key', apiKey)
     } else {
@@ -296,18 +290,18 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 </label>
               ))}
             </div>
-            {nativeAsrModel === NATIVE_ASR_MODEL_COHERE_Q4 && (
+            {nativeAsrModel === NATIVE_ASR_MODEL_PARAKEET_Q4 && (
               <div className="mt-4 pl-6">
-                <h4 className="text-[11px] font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Q4 Runtime</h4>
+                <h4 className="text-[11px] font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Parakeet Runtime</h4>
                 <div className="flex flex-col gap-2">
-                  {COHERE_Q4_RUNTIME_OPTIONS.map(({ value, label, badge, description }) => (
+                  {PARAKEET_Q4_RUNTIME_OPTIONS.map(({ value, label, badge, description }) => (
                     <label key={value} className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="radio"
-                        name="cohere-q4-runtime"
+                        name="parakeet-q4-runtime"
                         value={value}
-                        checked={cohereQ4Runtime === value}
-                        onChange={() => handleCohereQ4RuntimeChange(value)}
+                        checked={parakeetQ4Runtime === value}
+                        onChange={() => handleParakeetQ4RuntimeChange(value)}
                         className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
                       />
                       <span className="flex flex-col gap-0.5">
