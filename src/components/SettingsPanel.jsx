@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { Eraser, Mail, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import {
+  COHERE_Q4_RUNTIME_CLI,
+  COHERE_Q4_RUNTIME_SERVER,
   currentNativeAsrModel,
+  currentCohereQ4Runtime,
   NATIVE_ASR_MODEL_ACCURATE,
   NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
@@ -42,11 +45,26 @@ const NATIVE_ASR_MODEL_OPTIONS = [
   },
 ]
 
+const COHERE_Q4_RUNTIME_OPTIONS = [
+  {
+    value: COHERE_Q4_RUNTIME_CLI,
+    label: 'CLI',
+    badge: 'Default',
+    description: 'Starts CrispASR per transcription. Best baseline for latency comparison.',
+  },
+  {
+    value: COHERE_Q4_RUNTIME_SERVER,
+    label: 'Server',
+    description: 'Keeps CrispASR running as a local server. Useful to compare warm persistent Q4 performance.',
+  },
+]
+
 export function SettingsPanel({ open, onClose, onSaved }) {
   const [provider, setProvider]               = useState('builtin')
   const [apiKey, setApiKey]                   = useState('')
   const [intent, setIntent]                   = useState('clean')
   const [nativeAsrModel, setNativeAsrModel]   = useState(NATIVE_ASR_MODEL_FAST)
+  const [cohereQ4Runtime, setCohereQ4Runtime] = useState(COHERE_Q4_RUNTIME_CLI)
   const [asrModelStatus, setAsrModelStatus]   = useState('idle')
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
@@ -63,6 +81,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     const storedIntent = localStorage.getItem('vr_intent')
     setIntent(storedIntent && INTENT_OPTIONS.some(o => o.value === storedIntent) ? storedIntent : 'clean')
     setNativeAsrModel(currentNativeAsrModel())
+    setCohereQ4Runtime(currentCohereQ4Runtime())
     setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
@@ -115,10 +134,26 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     }
   }
 
+  const handleCohereQ4RuntimeChange = async (runtime) => {
+    setCohereQ4Runtime(runtime)
+    localStorage.setItem('vr_cohere_q4_runtime', runtime)
+    if (nativeAsrModel !== NATIVE_ASR_MODEL_COHERE_Q4) return
+
+    setAsrModelStatus('loading')
+    try {
+      await preloadNativeAsrModel(NATIVE_ASR_MODEL_COHERE_Q4)
+      setAsrModelStatus('ready')
+    } catch (err) {
+      console.warn('[settings] Q4 runtime preload failed', err)
+      setAsrModelStatus('error')
+    }
+  }
+
   const handleSave = () => {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_intent',  intent)
     localStorage.setItem('vr_native_asr_model', nativeAsrModel)
+    localStorage.setItem('vr_cohere_q4_runtime', cohereQ4Runtime)
     if (needsKey) {
       localStorage.setItem('vr_api_key', apiKey)
     } else {
@@ -254,6 +289,32 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 </label>
               ))}
             </div>
+            {nativeAsrModel === NATIVE_ASR_MODEL_COHERE_Q4 && (
+              <div className="mt-4 pl-6">
+                <h4 className="text-[11px] font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Q4 Runtime</h4>
+                <div className="flex flex-col gap-2">
+                  {COHERE_Q4_RUNTIME_OPTIONS.map(({ value, label, badge, description }) => (
+                    <label key={value} className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="cohere-q4-runtime"
+                        value={value}
+                        checked={cohereQ4Runtime === value}
+                        onChange={() => handleCohereQ4RuntimeChange(value)}
+                        className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                      />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
+                          {label}
+                          {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
+                        </span>
+                        <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             {asrModelStatus === 'loading' && (
               <p className="mt-2 text-xs text-[#8A766E]">Loading selected transcription model...</p>
             )}

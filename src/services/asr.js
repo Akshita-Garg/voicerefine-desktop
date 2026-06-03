@@ -2,6 +2,8 @@ export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 export const NATIVE_ASR_MODEL_FAST = 'fast';
 export const NATIVE_ASR_MODEL_ACCURATE = 'accurate';
 export const NATIVE_ASR_MODEL_COHERE_Q4 = 'cohere-q4';
+export const COHERE_Q4_RUNTIME_CLI = 'cli';
+export const COHERE_Q4_RUNTIME_SERVER = 'server';
 
 export function currentNativeAsrModel() {
   const stored = globalThis.localStorage?.getItem('vr_native_asr_model');
@@ -10,15 +12,25 @@ export function currentNativeAsrModel() {
   return NATIVE_ASR_MODEL_FAST;
 }
 
+export function currentCohereQ4Runtime() {
+  return globalThis.localStorage?.getItem('vr_cohere_q4_runtime') === COHERE_Q4_RUNTIME_SERVER
+    ? COHERE_Q4_RUNTIME_SERVER
+    : COHERE_Q4_RUNTIME_CLI;
+}
+
 export async function preloadNativeAsrModel(model = currentNativeAsrModel()) {
   if (!window.voicerefine?.preloadNativeAsrModel) {
     throw new Error('Native ASR preload bridge is unavailable.');
   }
 
   const startedAt = performance.now();
-  const result = await window.voicerefine.preloadNativeAsrModel({ model });
+  const result = await window.voicerefine.preloadNativeAsrModel({
+    model,
+    cohereQ4Runtime: currentCohereQ4Runtime(),
+  });
   console.log('[asr] native model preload complete', {
     model: result.model,
+    cohereQ4Runtime: currentCohereQ4Runtime(),
     totalMs: Math.round(performance.now() - startedAt),
   });
   return result;
@@ -69,11 +81,13 @@ export async function transcribe(blob) {
     samples: audio.samples,
     sampleRate: audio.sampleRate,
     model: currentNativeAsrModel(),
+    cohereQ4Runtime: currentCohereQ4Runtime(),
   });
 
   console.log('[asr] native transcription complete', {
     engine: NATIVE_ASR_ENGINE,
     model: result.model,
+    cohereQ4Runtime: currentCohereQ4Runtime(),
     totalMs: Math.round(performance.now() - startedAt),
     chars: result.text.length,
   });

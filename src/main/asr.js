@@ -13,6 +13,8 @@ const execFileAsync = promisify(execFile);
 const NATIVE_MODEL_FAST = 'fast';
 const NATIVE_MODEL_ACCURATE = 'accurate';
 const NATIVE_MODEL_COHERE_Q4 = 'cohere-q4';
+const COHERE_Q4_RUNTIME_CLI = 'cli';
+const COHERE_Q4_RUNTIME_SERVER = 'server';
 const recognizers = new Map();
 const recognizerPromises = new Map();
 let crispServer = null;
@@ -141,6 +143,11 @@ function normalizeNativeModel(model) {
   if (model === NATIVE_MODEL_ACCURATE) return NATIVE_MODEL_ACCURATE;
   if (model === NATIVE_MODEL_COHERE_Q4) return NATIVE_MODEL_COHERE_Q4;
   return NATIVE_MODEL_FAST;
+}
+
+function normalizeCohereQ4Runtime(runtime) {
+  if (runtime === COHERE_Q4_RUNTIME_SERVER) return COHERE_Q4_RUNTIME_SERVER;
+  return COHERE_Q4_RUNTIME_CLI;
 }
 
 function getModelConfig(model) {
@@ -335,7 +342,7 @@ async function postToCrispServer(server, wavBuffer) {
   throw lastError ?? new Error('CrispASR server transcription failed.');
 }
 
-async function transcribeWithCrispAsr(samples, sampleRate) {
+async function transcribeWithCrispAsrServer(samples, sampleRate) {
   const startedAt = now();
   const wavBuffer = createWavBuffer(samples, sampleRate);
 
@@ -347,6 +354,7 @@ async function transcribeWithCrispAsr(samples, sampleRate) {
     console.log('[asr-crisp] transcription complete', {
       engine: 'crispasr-server',
       nativeModel: NATIVE_MODEL_COHERE_Q4,
+      runtime: COHERE_Q4_RUNTIME_SERVER,
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
       totalMs: Math.round(now() - startedAt),
@@ -357,6 +365,7 @@ async function transcribeWithCrispAsr(samples, sampleRate) {
       text,
       engine: 'crispasr-server',
       model: NATIVE_MODEL_COHERE_Q4,
+      runtime: COHERE_Q4_RUNTIME_SERVER,
     };
   } catch (err) {
     console.warn('[asr-crisp] server transcription failed; falling back to one-shot CLI', err);
@@ -397,6 +406,7 @@ async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now())
     console.log('[asr-crisp] transcription complete', {
       engine: 'crispasr-cli',
       nativeModel: NATIVE_MODEL_COHERE_Q4,
+      runtime: COHERE_Q4_RUNTIME_CLI,
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
       totalMs: Math.round(now() - startedAt),
@@ -407,6 +417,7 @@ async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now())
       text,
       engine: 'crispasr-cli',
       model: NATIVE_MODEL_COHERE_Q4,
+      runtime: COHERE_Q4_RUNTIME_CLI,
     };
   } finally {
     await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -446,20 +457,30 @@ export async function unloadNativeAsrModels({ except } = {}) {
   return { unloaded, kept: keepModel };
 }
 
-export async function preloadNativeAsrModel({ model } = {}) {
+export async function preloadNativeAsrModel({ model, cohereQ4Runtime } = {}) {
   const nativeModel = normalizeNativeModel(model);
   const startedAt = now();
 
   await unloadNativeAsrModels({ except: nativeModel });
 
   if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
-    await startCrispAsrServer();
+    const runtime = normalizeCohereQ4Runtime(cohereQ4Runtime);
+    if (runtime === COHERE_Q4_RUNTIME_SERVER) {
+      await startCrispAsrServer();
+    } else {
+      await stopCrispAsrServer();
+      if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
+      if (!fs.existsSync(getCohereQ4ModelPath())) throw new Error(`Cohere Q4 model missing: ${getCohereQ4ModelPath()}`);
+    }
   } else {
     await getRecognizer(nativeModel);
   }
 
   return {
     model: nativeModel,
+    cohereQ4Runtime: nativeModel === NATIVE_MODEL_COHERE_Q4
+      ? normalizeCohereQ4Runtime(cohereQ4Runtime)
+      : null,
     durationMs: Math.round(now() - startedAt),
     loaded: Array.from(recognizers.keys()),
     crispServerReady: !!crispServer,
@@ -503,13 +524,19 @@ async function getRecognizer(model) {
   }
 }
 
-export async function transcribeNative({ samples, sampleRate, model }) {
+export async function transcribeNative({ samples, sampleRate, model, cohereQ4Runtime }) {
   const startedAt = now();
   const nativeModel = normalizeNativeModel(model);
   const typedSamples = samples instanceof Float32Array ? samples : new Float32Array(samples);
 
   if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
-    return await transcribeWithCrispAsr(typedSamples, sampleRate);
+    const runtime = normalizeCohereQ4Runtime(cohereQ4Runtime);
+    if (runtime === COHERE_Q4_RUNTIME_SERVER) {
+      return await transcribeWithCrispAsrServer(typedSamples, sampleRate);
+    }
+
+    await stopCrispAsrServer();
+    return await transcribeWithCrispAsrCli(typedSamples, sampleRate, startedAt);
   }
 
   const currentRecognizer = await getRecognizer(nativeModel);
