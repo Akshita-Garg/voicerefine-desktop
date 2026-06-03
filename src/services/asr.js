@@ -15,24 +15,26 @@ export function currentNativeAsrModel() {
 }
 
 export function currentCohereQ4Runtime() {
-  return globalThis.localStorage?.getItem('vr_cohere_q4_runtime') === COHERE_Q4_RUNTIME_SERVER
+  const stored = globalThis.localStorage?.getItem('vr_cohere_q4_runtime');
+  return stored === COHERE_Q4_RUNTIME_SERVER
     ? COHERE_Q4_RUNTIME_SERVER
     : COHERE_Q4_RUNTIME_CLI;
 }
 
-export async function preloadNativeAsrModel(model = currentNativeAsrModel()) {
+export async function preloadNativeAsrModel(model = currentNativeAsrModel(), { allowServerRuntime = true } = {}) {
   if (!window.voicerefine?.preloadNativeAsrModel) {
     throw new Error('Native ASR preload bridge is unavailable.');
   }
 
   const startedAt = performance.now();
+  const cohereQ4Runtime = allowServerRuntime ? currentCohereQ4Runtime() : COHERE_Q4_RUNTIME_CLI;
   const result = await window.voicerefine.preloadNativeAsrModel({
     model,
-    cohereQ4Runtime: currentCohereQ4Runtime(),
+    cohereQ4Runtime,
   });
   console.log('[asr] native model preload complete', {
     model: result.model,
-    cohereQ4Runtime: currentCohereQ4Runtime(),
+    cohereQ4Runtime,
     totalMs: Math.round(performance.now() - startedAt),
   });
   return result;

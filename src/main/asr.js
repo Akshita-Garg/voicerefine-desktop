@@ -221,23 +221,41 @@ function cleanParakeetOutput(stdout) {
     .trim();
 }
 
-function waitForPort(port, timeoutMs = 60000) {
+function waitForPort(port, child, timeoutMs = 15000) {
   const startedAt = Date.now();
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer = null;
+
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      child?.removeListener('exit', handleExit);
+      callback(value);
+    };
+
+    const handleExit = (code, signal) => {
+      finish(reject, new Error(`CrispASR server exited before becoming ready: code=${code} signal=${signal}`));
+    };
+
+    child?.once('exit', handleExit);
+
     const attempt = () => {
       const socket = net.createConnection({ host: '127.0.0.1', port });
       socket.once('connect', () => {
         socket.destroy();
-        resolve();
+        finish(resolve);
       });
       socket.once('error', () => {
         socket.destroy();
+        if (settled) return;
         if (Date.now() - startedAt > timeoutMs) {
-          reject(new Error(`CrispASR server did not become ready on port ${port}`));
+          finish(reject, new Error(`CrispASR server did not become ready on port ${port}`));
           return;
         }
-        setTimeout(attempt, 250);
+        timer = setTimeout(attempt, 250);
       });
     };
 
@@ -287,7 +305,7 @@ async function startCrispAsrServer() {
     });
 
     crispServer = { process: child, port };
-    await waitForPort(port, Number(process.env.VOICEREFINE_CRISPASR_START_TIMEOUT_MS || 60000));
+    await waitForPort(port, child, Number(process.env.VOICEREFINE_CRISPASR_START_TIMEOUT_MS || 15000));
 
     console.log('[asr-crisp-server] ready', {
       nativeModel: NATIVE_MODEL_COHERE_Q4,
@@ -300,6 +318,9 @@ async function startCrispAsrServer() {
 
   try {
     return await crispServerPromise;
+  } catch (err) {
+    await stopCrispAsrServer();
+    throw err;
   } finally {
     crispServerPromise = null;
   }
