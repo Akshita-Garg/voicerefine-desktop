@@ -117,6 +117,7 @@ function Overlay() {
       if (command === 'start-recording') void startRecording()
       if (command === 'stop-recording') stopRecording()
       if (command === 'cancel-recording') cancelRecording()
+      if (command === 'paste-failed') setStatus('paste-error')
     })
 
     window.voicerefine.overlayReady()
@@ -131,12 +132,14 @@ function Overlay() {
   const isComplete = status === 'complete'
   const title =
     status === 'error' ? 'Something went wrong'
+      : status === 'paste-error' ? 'Paste failed'
       : status === 'transcribing' ? 'Transcribing...'
         : isBusy ? 'Preparing...'
-          : isComplete ? 'Transcript ready'
+          : isComplete ? 'Inserted'
             : 'Recording...'
   const subtitle =
     status === 'transcribing' ? 'Converting your recording locally'
+      : status === 'paste-error' ? 'Transcript copied. Paste manually with Ctrl+V.'
       : isComplete ? (transcript || 'No speech detected')
         : `Press ${HOTKEY_LABEL} again or Esc`
 

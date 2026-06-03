@@ -1,8 +1,12 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import started from 'electron-squirrel-startup';
 import { preloadNativeAsrModel, transcribeNative, unloadNativeAsrModels } from './main/asr.js';
 import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
+
+const execFileAsync = promisify(execFile);
 
 if (started) {
   app.quit();
@@ -16,6 +20,50 @@ let overlayReady = false;
 let overlayRecording = false;
 let overlayProcessing = false;
 let pendingOverlayCommand = null;
+
+async function sendPasteShortcut() {
+  if (process.platform === 'win32') {
+    const powershellPath = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    await execFileAsync(powershellPath, [
+      '-NoProfile',
+      '-Command',
+      'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^v")',
+    ], { windowsHide: true });
+    return;
+  }
+
+  if (process.platform === 'darwin') {
+    await execFileAsync('osascript', [
+      '-e',
+      'tell application "System Events" to keystroke "v" using command down',
+    ]);
+    return;
+  }
+
+  await execFileAsync('xdotool', ['key', 'ctrl+v']);
+}
+
+async function pasteTextIntoActiveApp(text) {
+  const trimmedText = text?.trim();
+  if (!trimmedText) return { inserted: false, reason: 'empty-text' };
+
+  const previousText = clipboard.readText();
+  clipboard.writeText(trimmedText);
+
+  try {
+    await sendPasteShortcut();
+    setTimeout(() => {
+      if (clipboard.readText() === trimmedText) {
+        clipboard.writeText(previousText);
+      }
+    }, 1200);
+
+    return { inserted: true, chars: trimmedText.length };
+  } catch (err) {
+    clipboard.writeText(trimmedText);
+    throw err;
+  }
+}
 
 // SharedArrayBuffer (used by Transformers.js WASM threading) requires these
 // headers even in Electron. The Vite dev server sets them itself; for
@@ -205,6 +253,9 @@ app.whenReady().then(() => {
   ipcMain.handle('unload-native-asr-models', async (_event, payload) => {
     return await unloadNativeAsrModels(payload);
   });
+  ipcMain.handle('paste-text-into-active-app', async (_event, text) => {
+    return await pasteTextIntoActiveApp(text);
+  });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
     if (pendingOverlayCommand) {
@@ -223,9 +274,19 @@ app.whenReady().then(() => {
     overlayProcessing = true;
     console.log('[overlay] recording stopped', metadata);
   });
-  ipcMain.on('overlay-transcription-complete', (_event, payload) => {
+  ipcMain.on('overlay-transcription-complete', async (_event, payload) => {
     overlayProcessing = false;
     console.log('[overlay] transcription complete', payload);
+    try {
+      const result = await pasteTextIntoActiveApp(payload?.text);
+      console.log('[overlay] pasted transcript', result);
+      setTimeout(() => {
+        if (!overlayRecording) overlayWindow?.hide();
+      }, 350);
+    } catch (err) {
+      console.warn('[overlay] paste failed', err);
+      overlayWindow?.webContents.send('overlay-command', 'paste-failed');
+    }
   });
   ipcMain.on('overlay-recording-failed', (_event, message) => {
     overlayRecording = false;
