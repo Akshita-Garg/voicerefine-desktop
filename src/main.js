@@ -244,8 +244,8 @@ app.whenReady().then(() => {
 
   // Renderer calls window.voicerefine.refineBuiltin(system, user)
   // which crosses the IPC bridge to here, runs Gemma inference, and returns the string.
-  ipcMain.handle('refine-builtin', async (_event, system, user) => {
-    return await refineBuiltin(system, user);
+  ipcMain.handle('refine-builtin', async (_event, system, user, options) => {
+    return await refineBuiltin(system, user, options);
   });
   ipcMain.handle('warm-builtin', async () => {
     return await warmBuiltin();

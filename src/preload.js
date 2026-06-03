@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('voicerefine', {
-  refineBuiltin: (system, user) => ipcRenderer.invoke('refine-builtin', system, user),
+  refineBuiltin: (system, user, options) => ipcRenderer.invoke('refine-builtin', system, user, options),
   warmBuiltin: () => ipcRenderer.invoke('warm-builtin'),
   transcribeNative: (payload) => ipcRenderer.invoke('transcribe-native', payload),
   preloadNativeAsrModel: (payload) => ipcRenderer.invoke('preload-native-asr-model', payload),

@@ -206,7 +206,7 @@ export async function unloadBuiltinModel() {
   console.log('[refine] Runtime unloaded');
 }
 
-async function runRefinement(systemMessage, userMessage) {
+async function runRefinement(systemMessage, userMessage, options = {}) {
   const { LlamaChatSession } = await import('node-llama-cpp');
 
   activeRefinements += 1;
@@ -225,7 +225,9 @@ async function runRefinement(systemMessage, userMessage) {
       autoDisposeSequence: false,
     });
 
-    const maxTokens = calculateMaxTokens(userMessage);
+    const maxTokens = Number.isInteger(options.maxTokens)
+      ? Math.min(768, Math.max(16, options.maxTokens))
+      : calculateMaxTokens(userMessage);
     const startedAt = now();
 
     const response = await session.prompt(userMessage, {
@@ -251,8 +253,8 @@ async function runRefinement(systemMessage, userMessage) {
   }
 }
 
-export async function refineBuiltin(systemMessage, userMessage) {
-  const result = refinementQueue.then(() => runRefinement(systemMessage, userMessage));
+export async function refineBuiltin(systemMessage, userMessage, options) {
+  const result = refinementQueue.then(() => runRefinement(systemMessage, userMessage, options));
   refinementQueue = result.catch(() => {});
   return await result;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { composePrompt, INTENT_BLOCKS, MODE_BLOCKS } from './composePrompt'
+import { composePrompt, composeShortcutPrompt, INTENT_BLOCKS, MODE_BLOCKS } from './composePrompt'
 
 const base = {
   intent: 'clean',
@@ -69,5 +69,22 @@ describe('composePrompt', () => {
   it('throws on an unknown mode', () => {
     expect(() => composePrompt({ ...base, mode: 'unknown' }))
       .toThrow('Unknown mode: "unknown"')
+  })
+
+  it('creates a compact shortcut prompt for low-latency overlay refinement', () => {
+    const full = composePrompt(base)
+    const shortcut = composeShortcutPrompt(base)
+
+    expect(shortcut.system.length).toBeLessThan(full.system.length)
+    expect(shortcut.user.length).toBeLessThan(full.user.length * 0.5)
+    expect(shortcut.user).toContain('Clean only')
+    expect(shortcut.user).toContain('Mode: prose only')
+    expect(shortcut.user).toContain(base.transcript)
+  })
+
+  it('keeps shortcut bullet mode explicit', () => {
+    const { user } = composeShortcutPrompt({ ...base, mode: 'bullets' })
+    expect(user).toContain('Every line starts "- ".')
+    expect(user).toContain('No intro/title/conclusion.')
   })
 })

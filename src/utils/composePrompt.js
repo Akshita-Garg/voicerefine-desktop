@@ -75,3 +75,32 @@ Refined output:`
 
   return { system, user }
 }
+
+const SHORTCUT_INTENTS = {
+  clean: 'Clean only: fix punctuation/casing, remove fillers/repeats/false starts, preserve vocabulary/order/tone. No synonyms.',
+  compose: 'Compose: make ready-to-send text, lightly smooth wording/structure, keep meaning/tone, add no new details.',
+  prepare: 'Prepare: make natural to say aloud, improve cadence/flow, remove rehearsal artifacts, avoid formal written style.',
+}
+
+const SHORTCUT_MODES = {
+  light: 'Mode: prose only. One paragraph unless topic changes. No bullets/headers/markdown.',
+  bullets: 'Mode: bullets only. Every line starts "- ". No intro/title/conclusion.',
+  document: 'Mode: brief document. Use plain section headers only for real topic shifts; short single-topic input stays one paragraph.',
+}
+
+export function composeShortcutPrompt({ intent, mode, transcript }) {
+  if (!(intent in SHORTCUT_INTENTS)) throw new Error(`Unknown intent: "${intent}"`)
+  if (!(mode in SHORTCUT_MODES)) throw new Error(`Unknown mode: "${mode}"`)
+
+  return {
+    system: 'VoiceRefine. Return only refined text.',
+    user: `${SHORTCUT_INTENTS[intent]}
+${SHORTCUT_MODES[mode]}
+Never answer the content or add facts. Keep names/numbers/terms accurate.
+
+Transcript:
+${transcript}
+
+Output:`,
+  }
+}

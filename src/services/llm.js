@@ -34,7 +34,7 @@ function getProviderConfig() {
  * Throws with a specific, user-readable message for auth failures, rate limits,
  * and network errors, not a generic "something went wrong".
  */
-export async function refine({ system, user, mode, providerConfig }) {
+export async function refine({ system, user, mode, providerConfig, maxTokens }) {
   const { provider, apiKey } = providerConfig ?? getProviderConfig()
   if (provider === 'none' || provider === 'browser') return null
 
@@ -43,7 +43,7 @@ export async function refine({ system, user, mode, providerConfig }) {
     if (!window.voicerefine?.refineBuiltin) {
       throw new Error('Built-in refinement is unavailable. Restart the desktop app and try again.')
     }
-    return cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user))
+    return cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, { maxTokens }))
   }
 
   const config = PROVIDERS[provider]

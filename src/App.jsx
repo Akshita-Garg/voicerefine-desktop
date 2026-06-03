@@ -6,7 +6,7 @@ import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
 import { currentNativeAsrModel, preloadNativeAsrModel, transcribe } from './services/asr'
 import { composePrompt } from './utils/composePrompt'
-import { refine } from './services/llm'
+import { refine, warmBuiltinRefinement } from './services/llm'
 
 const MODES = [
   { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean prose. Preserves the flow of what you said.' },
@@ -52,6 +52,13 @@ function syncRefinementSettings() {
   })
 }
 
+function warmSelectedRefinementProvider() {
+  if (readProvider() !== 'builtin') return
+  warmBuiltinRefinement().catch(err => {
+    console.warn('[refine] warmup failed', err)
+  })
+}
+
 function App() {
   const [onboardingDone, setOnboardingDone] = useState(readOnboardingDone)
   const [rawTranscript, setRawTranscript]     = useState('')
@@ -86,6 +93,8 @@ function App() {
 
   useEffect(() => {
     void syncRefinementSettings()
+    const warmupTimer = setTimeout(warmSelectedRefinementProvider, 1500)
+    return () => clearTimeout(warmupTimer)
   }, [])
 
   const copyText = async (text, setCopied) => {
@@ -161,6 +170,7 @@ function App() {
     setIntent(readIntent())
     setProvider(readProvider())
     void syncRefinementSettings()
+    warmSelectedRefinementProvider()
   }
 
   const handleIntentChange = (val) => {
