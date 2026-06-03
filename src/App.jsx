@@ -35,8 +35,21 @@ function readMode() {
   return MODES.some(mode => mode.value === stored) ? stored : 'light'
 }
 
+function readApiKey() {
+  return localStorage.getItem('vr_api_key') ?? ''
+}
+
 function readOnboardingDone() {
   return !!localStorage.getItem('vr_onboarding_done')
+}
+
+function syncRefinementSettings() {
+  return window.voicerefine?.setRefinementSettings?.({
+    provider: readProvider(),
+    apiKey: readApiKey(),
+    intent: readIntent(),
+    mode: readMode(),
+  })
 }
 
 function App() {
@@ -69,6 +82,10 @@ function App() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  useEffect(() => {
+    void syncRefinementSettings()
   }, [])
 
   const copyText = async (text, setCopied) => {
@@ -143,16 +160,19 @@ function App() {
   const handleSettingsSaved = () => {
     setIntent(readIntent())
     setProvider(readProvider())
+    void syncRefinementSettings()
   }
 
   const handleIntentChange = (val) => {
     localStorage.setItem('vr_intent', val)
     setIntent(val)
+    void syncRefinementSettings()
   }
 
   const handleModeChange = (val) => {
     localStorage.setItem('vr_mode', val)
     setMode(val)
+    void syncRefinementSettings()
   }
 
   const currentMode = MODES.find(m => m.value === mode)
@@ -402,7 +422,7 @@ function App() {
       />
 
       {!onboardingDone && (
-        <Onboarding onComplete={() => { setOnboardingDone(true); setIntent(readIntent()); setProvider(readProvider()) }} />
+        <Onboarding onComplete={() => { setOnboardingDone(true); setIntent(readIntent()); setProvider(readProvider()); void syncRefinementSettings() }} />
       )}
     </div>
   )

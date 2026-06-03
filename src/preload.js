@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('voicerefine', {
   preloadNativeAsrModel: (payload) => ipcRenderer.invoke('preload-native-asr-model', payload),
   unloadNativeAsrModels: (payload) => ipcRenderer.invoke('unload-native-asr-models', payload),
   pasteTextIntoActiveApp: (text) => ipcRenderer.invoke('paste-text-into-active-app', text),
+  getRefinementSettings: () => ipcRenderer.invoke('get-refinement-settings'),
+  setRefinementSettings: (settings) => ipcRenderer.invoke('set-refinement-settings', settings),
   overlayReady: () => ipcRenderer.send('overlay-ready'),
   overlayRecordingStarted: () => ipcRenderer.send('overlay-recording-started'),
   overlayRecordingStopped: (metadata) => ipcRenderer.send('overlay-recording-stopped', metadata),

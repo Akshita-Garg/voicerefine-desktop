@@ -20,6 +20,12 @@ let overlayReady = false;
 let overlayRecording = false;
 let overlayProcessing = false;
 let pendingOverlayCommand = null;
+let refinementSettings = {
+  provider: 'builtin',
+  apiKey: '',
+  intent: 'clean',
+  mode: 'light',
+};
 
 async function sendPasteShortcut() {
   if (process.platform === 'win32') {
@@ -255,6 +261,18 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('paste-text-into-active-app', async (_event, text) => {
     return await pasteTextIntoActiveApp(text);
+  });
+  ipcMain.handle('get-refinement-settings', async () => {
+    return refinementSettings;
+  });
+  ipcMain.handle('set-refinement-settings', async (_event, settings) => {
+    refinementSettings = {
+      provider: settings?.provider ?? refinementSettings.provider,
+      apiKey: settings?.apiKey ?? refinementSettings.apiKey,
+      intent: settings?.intent ?? refinementSettings.intent,
+      mode: settings?.mode ?? refinementSettings.mode,
+    };
+    return refinementSettings;
   });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;

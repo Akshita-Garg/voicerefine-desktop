@@ -34,8 +34,8 @@ function getProviderConfig() {
  * Throws with a specific, user-readable message for auth failures, rate limits,
  * and network errors, not a generic "something went wrong".
  */
-export async function refine({ system, user, mode }) {
-  const { provider, apiKey } = getProviderConfig()
+export async function refine({ system, user, mode, providerConfig }) {
+  const { provider, apiKey } = providerConfig ?? getProviderConfig()
   if (provider === 'none' || provider === 'browser') return null
 
   // Built-in: runs Gemma locally via IPC to the main process.

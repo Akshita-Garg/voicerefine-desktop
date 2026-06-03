@@ -19,21 +19,33 @@ function formatTime(totalSeconds) {
 const VALID_INTENTS = new Set(['clean', 'compose', 'prepare'])
 const VALID_MODES = new Set(['light', 'bullets', 'document'])
 
-function readOverlayIntent() {
+async function readOverlayRefinementSettings() {
+  const settings = await window.voicerefine?.getRefinementSettings?.()
+  const storedIntent = settings?.intent ?? localStorage.getItem('vr_intent')
+  const storedMode = settings?.mode ?? localStorage.getItem('vr_mode')
+  return {
+    provider: settings?.provider ?? 'builtin',
+    apiKey: settings?.apiKey ?? '',
+    intent: VALID_INTENTS.has(storedIntent) ? storedIntent : 'clean',
+    mode: VALID_MODES.has(storedMode) ? storedMode : 'light',
+  }
+}
+
+function readFallbackIntent() {
   const stored = localStorage.getItem('vr_intent')
   return VALID_INTENTS.has(stored) ? stored : 'clean'
 }
 
-function readOverlayMode() {
+function readFallbackMode() {
   const stored = localStorage.getItem('vr_mode')
   return VALID_MODES.has(stored) ? stored : 'light'
 }
 
 async function refineForPaste(transcript) {
-  const intent = readOverlayIntent()
-  const mode = readOverlayMode()
+  const settings = await readOverlayRefinementSettings()
+  const { intent, mode } = settings
   const { system, user } = composePrompt({ intent, mode, transcript })
-  const output = await refine({ system, user, mode })
+  const output = await refine({ system, user, mode, providerConfig: settings })
   return {
     intent,
     mode,
@@ -96,7 +108,7 @@ function Overlay() {
           const startedAt = Date.now()
           const text = await transcribe(blob)
           let output = text
-          let refinement = { refined: false, intent: readOverlayIntent(), mode: readOverlayMode() }
+          let refinement = { refined: false, intent: readFallbackIntent(), mode: readFallbackMode() }
 
           try {
             setStatus('refining')
