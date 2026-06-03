@@ -518,7 +518,7 @@ async function unloadSherpaRecognizer(model) {
   return true;
 }
 
-export async function unloadNativeAsrModels({ except } = {}) {
+export async function unloadNativeAsrModels({ except, keepCrispServer = false } = {}) {
   const keepModel = except ? normalizeNativeModel(except) : null;
   const unloaded = [];
 
@@ -527,22 +527,27 @@ export async function unloadNativeAsrModels({ except } = {}) {
     if (await unloadSherpaRecognizer(model)) unloaded.push(model);
   }
 
-  if (keepModel !== NATIVE_MODEL_COHERE_Q4 && keepModel !== NATIVE_MODEL_PARAKEET_Q4) {
+  if (!keepCrispServer) {
     await stopCrispAsrServer();
   }
 
-  return { unloaded, kept: keepModel };
+  return { unloaded, kept: keepModel, crispServerKept: keepCrispServer && !!crispServer };
 }
 
 export async function preloadNativeAsrModel({ model, parakeetQ4Runtime } = {}) {
   const nativeModel = normalizeNativeModel(model);
+  const parakeetRuntime = nativeModel === NATIVE_MODEL_PARAKEET_Q4
+    ? normalizeParakeetQ4Runtime(parakeetQ4Runtime)
+    : null;
   const startedAt = now();
 
-  await unloadNativeAsrModels({ except: nativeModel });
+  await unloadNativeAsrModels({
+    except: nativeModel,
+    keepCrispServer: parakeetRuntime === PARAKEET_Q4_RUNTIME_SERVER,
+  });
 
   if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
-    const runtime = normalizeParakeetQ4Runtime(parakeetQ4Runtime);
-    if (runtime === PARAKEET_Q4_RUNTIME_SERVER) {
+    if (parakeetRuntime === PARAKEET_Q4_RUNTIME_SERVER) {
       await startCrispAsrServer(NATIVE_MODEL_PARAKEET_Q4);
     } else {
       await stopCrispAsrServer();
@@ -559,9 +564,7 @@ export async function preloadNativeAsrModel({ model, parakeetQ4Runtime } = {}) {
 
   return {
     model: nativeModel,
-    parakeetQ4Runtime: nativeModel === NATIVE_MODEL_PARAKEET_Q4
-      ? normalizeParakeetQ4Runtime(parakeetQ4Runtime)
-      : null,
+    parakeetQ4Runtime: parakeetRuntime,
     durationMs: Math.round(now() - startedAt),
     loaded: Array.from(recognizers.keys()),
     crispServerReady: !!crispServer,
