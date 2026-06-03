@@ -13,7 +13,6 @@ const execFileAsync = promisify(execFile);
 const NATIVE_MODEL_FAST = 'fast';
 const NATIVE_MODEL_PARAKEET_Q4 = 'parakeet-q4';
 const NATIVE_MODEL_COHERE_Q4 = 'cohere-q4';
-const PARAKEET_Q4_RUNTIME_CLI = 'cli';
 const PARAKEET_Q4_RUNTIME_SERVER = 'server';
 const recognizers = new Map();
 const recognizerPromises = new Map();
@@ -123,11 +122,6 @@ function normalizeNativeModel(model) {
   return NATIVE_MODEL_FAST;
 }
 
-function normalizeParakeetQ4Runtime(runtime) {
-  if (runtime === PARAKEET_Q4_RUNTIME_SERVER) return PARAKEET_Q4_RUNTIME_SERVER;
-  return PARAKEET_Q4_RUNTIME_CLI;
-}
-
 function getModelConfig(model) {
   return {
     label: 'whisper-tiny-en-int8',
@@ -168,15 +162,6 @@ function cleanCrispAsrOutput(stdout) {
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean)
-    .join('\n')
-    .trim();
-}
-
-function cleanParakeetOutput(stdout) {
-  return stdout
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line && !line.startsWith('parakeet:'))
     .join('\n')
     .trim();
 }
@@ -392,10 +377,7 @@ async function transcribeWithCrispAsrServer(samples, sampleRate, nativeModel) {
     };
   } catch (err) {
     console.warn('[asr-crisp] server transcription failed', err);
-    if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
-      return await transcribeWithParakeetCli(samples, sampleRate, startedAt);
-    }
-    return await transcribeWithCrispAsrCli(samples, sampleRate, startedAt);
+    throw err;
   }
 }
 
@@ -432,57 +414,6 @@ async function transcribeWithCrispAsrCli(samples, sampleRate, startedAt = now())
     console.log('[asr-crisp] transcription complete', {
       engine: 'crispasr-cli',
       nativeModel: NATIVE_MODEL_COHERE_Q4,
-      runtime: PARAKEET_Q4_RUNTIME_CLI,
-      audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
-      inferenceMs: Math.round(now() - inferenceStartedAt),
-      totalMs: Math.round(now() - startedAt),
-      chars: text.length,
-    });
-
-    return {
-      text,
-      engine: 'crispasr-cli',
-      model: NATIVE_MODEL_COHERE_Q4,
-      runtime: PARAKEET_Q4_RUNTIME_CLI,
-    };
-  } finally {
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
-  }
-}
-
-async function transcribeWithParakeetCli(samples, sampleRate, startedAt = now()) {
-  const binPath = getCrispAsrPath();
-  const modelPath = getParakeetQ4ModelPath();
-
-  if (!fs.existsSync(binPath)) throw new Error(`CrispASR binary missing: ${binPath}`);
-  if (!fs.existsSync(modelPath)) throw new Error(`Parakeet Q4 model missing: ${modelPath}`);
-
-  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voicerefine-asr-'));
-  const wavPath = path.join(tempDir, 'recording.wav');
-
-  try {
-    await fs.promises.writeFile(wavPath, createWavBuffer(samples, sampleRate));
-    const inferenceStartedAt = now();
-    const { stdout, stderr } = await execFileAsync(binPath, [
-      '--backend', 'parakeet',
-      '--model', modelPath,
-      '--file', wavPath,
-      '--language', 'en',
-      '--threads', String(Math.max(1, Number(process.env.VOICEREFINE_CRISPASR_THREADS || 8))),
-      '--no-prints',
-      '--no-timestamps',
-    ], {
-      windowsHide: true,
-      timeout: Number(process.env.VOICEREFINE_CRISPASR_TIMEOUT_MS || 180000),
-      maxBuffer: 2 * 1024 * 1024,
-    });
-
-    const text = cleanParakeetOutput(stdout);
-    if (!text && stderr) console.warn('[asr-parakeet] empty stdout', stderr.trim());
-
-    console.log('[asr-parakeet] transcription complete', {
-      engine: 'crispasr-cli',
-      nativeModel: NATIVE_MODEL_PARAKEET_Q4,
       runtime: 'cli',
       audioSeconds: Number((samples.length / sampleRate).toFixed(2)),
       inferenceMs: Math.round(now() - inferenceStartedAt),
@@ -493,7 +424,7 @@ async function transcribeWithParakeetCli(samples, sampleRate, startedAt = now())
     return {
       text,
       engine: 'crispasr-cli',
-      model: NATIVE_MODEL_PARAKEET_Q4,
+      model: NATIVE_MODEL_COHERE_Q4,
       runtime: 'cli',
     };
   } finally {
@@ -537,7 +468,7 @@ export async function unloadNativeAsrModels({ except, keepCrispServer = false } 
 export async function preloadNativeAsrModel({ model, parakeetQ4Runtime } = {}) {
   const nativeModel = normalizeNativeModel(model);
   const parakeetRuntime = nativeModel === NATIVE_MODEL_PARAKEET_Q4
-    ? normalizeParakeetQ4Runtime(parakeetQ4Runtime)
+    ? PARAKEET_Q4_RUNTIME_SERVER
     : null;
   const startedAt = now();
 
@@ -547,13 +478,7 @@ export async function preloadNativeAsrModel({ model, parakeetQ4Runtime } = {}) {
   });
 
   if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
-    if (parakeetRuntime === PARAKEET_Q4_RUNTIME_SERVER) {
-      await startCrispAsrServer(NATIVE_MODEL_PARAKEET_Q4);
-    } else {
-      await stopCrispAsrServer();
-      if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
-      if (!fs.existsSync(getParakeetQ4ModelPath())) throw new Error(`Parakeet Q4 model missing: ${getParakeetQ4ModelPath()}`);
-    }
+    await startCrispAsrServer(NATIVE_MODEL_PARAKEET_Q4);
   } else if (nativeModel === NATIVE_MODEL_COHERE_Q4) {
     await stopCrispAsrServer();
     if (!fs.existsSync(getCrispAsrPath())) throw new Error(`CrispASR binary missing: ${getCrispAsrPath()}`);
@@ -617,13 +542,7 @@ export async function transcribeNative({ samples, sampleRate, model, parakeetQ4R
   }
 
   if (nativeModel === NATIVE_MODEL_PARAKEET_Q4) {
-    const runtime = normalizeParakeetQ4Runtime(parakeetQ4Runtime);
-    if (runtime === PARAKEET_Q4_RUNTIME_SERVER) {
-      return await transcribeWithCrispAsrServer(typedSamples, sampleRate, NATIVE_MODEL_PARAKEET_Q4);
-    }
-
-    await stopCrispAsrServer();
-    return await transcribeWithParakeetCli(typedSamples, sampleRate, startedAt);
+    return await transcribeWithCrispAsrServer(typedSamples, sampleRate, NATIVE_MODEL_PARAKEET_Q4);
   }
 
   const currentRecognizer = await getRecognizer(nativeModel);

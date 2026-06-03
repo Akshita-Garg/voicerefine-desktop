@@ -2,21 +2,14 @@ export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 export const NATIVE_ASR_MODEL_FAST = 'fast';
 export const NATIVE_ASR_MODEL_PARAKEET_Q4 = 'parakeet-q4';
 export const NATIVE_ASR_MODEL_COHERE_Q4 = 'cohere-q4';
-export const PARAKEET_Q4_RUNTIME_CLI = 'cli';
 export const PARAKEET_Q4_RUNTIME_SERVER = 'server';
 
 export function currentNativeAsrModel() {
   const stored = globalThis.localStorage?.getItem('vr_native_asr_model');
+  if (stored === NATIVE_ASR_MODEL_FAST) return NATIVE_ASR_MODEL_FAST;
   if (stored === NATIVE_ASR_MODEL_PARAKEET_Q4) return NATIVE_ASR_MODEL_PARAKEET_Q4;
   if (stored === NATIVE_ASR_MODEL_COHERE_Q4) return NATIVE_ASR_MODEL_COHERE_Q4;
-  return NATIVE_ASR_MODEL_FAST;
-}
-
-export function currentParakeetQ4Runtime() {
-  const stored = globalThis.localStorage?.getItem('vr_parakeet_q4_runtime');
-  return stored === PARAKEET_Q4_RUNTIME_SERVER
-    ? PARAKEET_Q4_RUNTIME_SERVER
-    : PARAKEET_Q4_RUNTIME_CLI;
+  return NATIVE_ASR_MODEL_PARAKEET_Q4;
 }
 
 export async function preloadNativeAsrModel(model = currentNativeAsrModel()) {
@@ -25,14 +18,13 @@ export async function preloadNativeAsrModel(model = currentNativeAsrModel()) {
   }
 
   const startedAt = performance.now();
-  const parakeetQ4Runtime = currentParakeetQ4Runtime();
   const result = await window.voicerefine.preloadNativeAsrModel({
     model,
-    parakeetQ4Runtime,
+    parakeetQ4Runtime: PARAKEET_Q4_RUNTIME_SERVER,
   });
   console.log('[asr] native model preload complete', {
     model: result.model,
-    parakeetQ4Runtime,
+    parakeetQ4Runtime: PARAKEET_Q4_RUNTIME_SERVER,
     totalMs: Math.round(performance.now() - startedAt),
   });
   return result;
@@ -83,13 +75,13 @@ export async function transcribe(blob) {
     samples: audio.samples,
     sampleRate: audio.sampleRate,
     model: currentNativeAsrModel(),
-    parakeetQ4Runtime: currentParakeetQ4Runtime(),
+    parakeetQ4Runtime: PARAKEET_Q4_RUNTIME_SERVER,
   });
 
   console.log('[asr] native transcription complete', {
     engine: NATIVE_ASR_ENGINE,
     model: result.model,
-    parakeetQ4Runtime: currentParakeetQ4Runtime(),
+    parakeetQ4Runtime: PARAKEET_Q4_RUNTIME_SERVER,
     totalMs: Math.round(performance.now() - startedAt),
     chars: result.text.length,
   });
