@@ -77,8 +77,12 @@ describe('composePrompt', () => {
 
     expect(shortcut.system.length).toBeLessThan(full.system.length)
     expect(shortcut.user.length).toBeLessThan(full.user.length * 0.5)
-    expect(shortcut.user).toContain('Clean only')
+    expect(shortcut.user).toContain('Intent: CLEAN')
+    expect(shortcut.user).toContain('do not summarize or compress')
+    expect(shortcut.user).toContain('Keep the same vocabulary')
+    expect(shortcut.user).toContain('Do not replace words with smarter synonyms.')
     expect(shortcut.user).toContain('Mode: prose only')
+    expect(shortcut.user).toContain('Keep roughly the same length.')
     expect(shortcut.user).toContain(base.transcript)
   })
 

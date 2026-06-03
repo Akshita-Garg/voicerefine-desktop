@@ -46,7 +46,8 @@ async function refineForPaste(transcript) {
   const { intent, mode } = settings
   const { system, user } = composeShortcutPrompt({ intent, mode, transcript })
   const transcriptWordCount = transcript.split(/\s+/).filter(Boolean).length
-  const maxTokens = Math.min(384, Math.max(64, Math.ceil(transcriptWordCount * 2.25)))
+  const budgetMultiplier = intent === 'clean' ? 3 : 2.25
+  const maxTokens = Math.min(384, Math.max(96, Math.ceil(transcriptWordCount * budgetMultiplier)))
   const output = await refine({ system, user, mode, providerConfig: settings, maxTokens })
   return {
     intent,
