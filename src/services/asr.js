@@ -1,5 +1,6 @@
 export const NATIVE_ASR_ENGINE = 'sherpa-onnx-node';
 export const NATIVE_ASR_MODEL_FAST = 'fast';
+export const NATIVE_ASR_MODEL_PARAKEET_Q4 = 'parakeet-q4';
 export const NATIVE_ASR_MODEL_ACCURATE = 'accurate';
 export const NATIVE_ASR_MODEL_COHERE_Q4 = 'cohere-q4';
 export const COHERE_Q4_RUNTIME_CLI = 'cli';
@@ -7,6 +8,7 @@ export const COHERE_Q4_RUNTIME_SERVER = 'server';
 
 export function currentNativeAsrModel() {
   const stored = globalThis.localStorage?.getItem('vr_native_asr_model');
+  if (stored === NATIVE_ASR_MODEL_PARAKEET_Q4) return NATIVE_ASR_MODEL_PARAKEET_Q4;
   if (stored === NATIVE_ASR_MODEL_ACCURATE) return NATIVE_ASR_MODEL_ACCURATE;
   if (stored === NATIVE_ASR_MODEL_COHERE_Q4) return NATIVE_ASR_MODEL_COHERE_Q4;
   return NATIVE_ASR_MODEL_FAST;

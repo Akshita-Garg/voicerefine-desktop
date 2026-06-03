@@ -9,6 +9,7 @@ import {
   NATIVE_ASR_MODEL_ACCURATE,
   NATIVE_ASR_MODEL_COHERE_Q4,
   NATIVE_ASR_MODEL_FAST,
+  NATIVE_ASR_MODEL_PARAKEET_Q4,
   preloadNativeAsrModel,
 } from '../services/asr'
 import { Tooltip } from './Tooltip'
@@ -32,6 +33,12 @@ const NATIVE_ASR_MODEL_OPTIONS = [
     label: 'Fast',
     badge: 'Default',
     description: 'Whisper tiny int8. Lowest latency and lightest memory use for everyday dictation.',
+  },
+  {
+    value: NATIVE_ASR_MODEL_PARAKEET_Q4,
+    label: 'Balanced Q4',
+    badge: 'New',
+    description: 'Parakeet 0.6B Q4 through CrispASR. Targeting better accuracy than Whisper Tiny with lower latency than Cohere.',
   },
   {
     value: NATIVE_ASR_MODEL_ACCURATE,
