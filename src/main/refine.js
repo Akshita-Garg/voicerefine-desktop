@@ -221,20 +221,22 @@ async function runRefinement(systemMessage, userMessage, options = {}) {
 
     session = new LlamaChatSession({
       contextSequence: currentSequence,
-      systemPrompt: systemMessage,
       autoDisposeSequence: false,
     });
 
+    const prompt = systemMessage?.trim()
+      ? `${systemMessage.trim()}\n\n${userMessage}`
+      : userMessage;
     const maxTokens = Number.isInteger(options.maxTokens)
       ? Math.min(1024, Math.max(16, options.maxTokens))
-      : calculateMaxTokens(userMessage);
+      : calculateMaxTokens(prompt);
     const startedAt = now();
 
-    const response = await session.prompt(userMessage, {
+    const response = await session.prompt(prompt, {
       maxTokens,
-      temperature: 1.0,
-      topP: 0.95,
-      topK: 64,
+      temperature: Number.isFinite(options.temperature) ? options.temperature : 1.0,
+      topP: Number.isFinite(options.topP) ? options.topP : 0.95,
+      topK: Number.isInteger(options.topK) ? options.topK : 64,
     });
 
     console.log('[refine] Refinement complete', {
@@ -242,6 +244,9 @@ async function runRefinement(systemMessage, userMessage, options = {}) {
       generationMs: Math.round(now() - startedAt),
       totalMs: Math.round(now() - totalStartedAt),
       maxTokens,
+      temperature: Number.isFinite(options.temperature) ? options.temperature : 1.0,
+      topP: Number.isFinite(options.topP) ? options.topP : 0.95,
+      topK: Number.isInteger(options.topK) ? options.topK : 64,
       chars: response.length,
     });
 

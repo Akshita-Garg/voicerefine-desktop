@@ -1,7 +1,7 @@
 // Cloud providers speak the OpenAI chat/completions format.
 // Gemini supports it via their OpenAI-compatible layer at a different base URL.
 import { readProviderConfig } from '../utils/providerConfig'
-import { cleanRefinementOutput } from '../utils/refinementOutput'
+import { cleanRefinementOutput, cleanSpeechArtifacts } from '../utils/refinementOutput'
 
 const PROVIDERS = {
   openai: {
@@ -27,6 +27,16 @@ function getProviderConfig() {
   return readProviderConfig(globalThis.localStorage)
 }
 
+function samplingFor({ intent, mode }) {
+  if (intent === 'clean') {
+    return { temperature: 0.25, topP: 0.85, topK: 32 }
+  }
+  if (mode === 'bullets' || mode === 'document') {
+    return { temperature: 0.7, topP: 0.9, topK: 48 }
+  }
+  return { temperature: 0.9, topP: 0.95, topK: 64 }
+}
+
 /**
  * Send the composed { system, user } prompt to the configured LLM provider
  * and return the refined text.
@@ -34,7 +44,7 @@ function getProviderConfig() {
  * Throws with a specific, user-readable message for auth failures, rate limits,
  * and network errors, not a generic "something went wrong".
  */
-export async function refine({ system, user, mode, providerConfig, maxTokens }) {
+export async function refine({ system, user, mode, intent, providerConfig, maxTokens }) {
   const { provider, apiKey } = providerConfig ?? getProviderConfig()
   if (provider === 'none' || provider === 'browser') return null
 
@@ -43,7 +53,11 @@ export async function refine({ system, user, mode, providerConfig, maxTokens }) 
     if (!window.voicerefine?.refineBuiltin) {
       throw new Error('Built-in refinement is unavailable. Restart the desktop app and try again.')
     }
-    return cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, { maxTokens }))
+    const output = cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, {
+      maxTokens,
+      ...samplingFor({ intent, mode }),
+    }))
+    return intent === 'clean' ? cleanSpeechArtifacts(output) : output
   }
 
   const config = PROVIDERS[provider]

@@ -12,7 +12,8 @@
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark:refinement": "node scripts/benchmark-refinement.mjs"
   },
   "keywords": [],
   "author": {

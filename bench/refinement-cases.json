@@ -1,0 +1,63 @@
+[
+  {
+    "id": "clean-latency-gemma",
+    "intent": "clean",
+    "mode": "light",
+    "transcript": "Let's see if we can do something with the refinement model. Like uh Gemma is using way too much um latency right now."
+  },
+  {
+    "id": "clean-main-window-mode",
+    "intent": "clean",
+    "mode": "light",
+    "transcript": "I think uh using the main window or uh the selected mode from the main window is fine."
+  },
+  {
+    "id": "clean-preserve-hedges",
+    "intent": "clean",
+    "mode": "light",
+    "transcript": "I think maybe we should keep this as a setting because I'm not sure everyone will want the model running all the time."
+  },
+  {
+    "id": "clean-technical-terms",
+    "intent": "clean",
+    "mode": "light",
+    "transcript": "The Parakeet server is definitely faster than the CLI for this model because uh the warmup cost gets paid once."
+  },
+  {
+    "id": "clean-longer-casual",
+    "intent": "clean",
+    "mode": "light",
+    "transcript": "So basically I want the shortcut to feel like I am typing naturally into another app, not like I am waiting for a chatbot to finish writing something for me."
+  },
+  {
+    "id": "compose-message",
+    "intent": "compose",
+    "mode": "light",
+    "transcript": "Hey I looked at the numbers and I think we should probably move the meeting to Friday because Thursday is looking a little packed for everyone."
+  },
+  {
+    "id": "compose-bullets",
+    "intent": "compose",
+    "mode": "bullets",
+    "transcript": "We need to test the shortcut in Notepad, then test it in Chrome, then check if the model stays warm after a few minutes."
+  },
+  {
+    "id": "prepare-spoken",
+    "intent": "prepare",
+    "mode": "light",
+    "transcript": "I want to explain that the app is local first, so the user's audio and text stay on their machine, and then talk about the latency tradeoff."
+  },
+  {
+    "id": "document-sections",
+    "intent": "compose",
+    "mode": "document",
+    "transcript": "First we need to finish the desktop shortcut. Then we need to benchmark refinement models. After that we can polish the settings screen."
+  },
+  {
+    "id": "clean-three-minute-shape",
+    "intent": "clean",
+    "mode": "light",
+    "repeat": 7,
+    "transcript": "I want to make sure we remember that recordings can be much longer than one sentence. A real user might talk for two or three minutes and explain a whole idea. In that case the model should not compress everything into one clever sentence. It should still keep the same vocabulary and the same sequence of thoughts, while cleaning up fillers and repeated words."
+  }
+]

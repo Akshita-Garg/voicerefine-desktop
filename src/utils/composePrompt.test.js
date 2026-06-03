@@ -76,7 +76,7 @@ describe('composePrompt', () => {
     const shortcut = composeShortcutPrompt(base)
 
     expect(shortcut.system.length).toBeLessThan(full.system.length)
-    expect(shortcut.user.length).toBeLessThan(full.user.length * 0.5)
+    expect(shortcut.user.length).toBeLessThan(full.user.length * 0.65)
     expect(shortcut.user).toContain('Intent: CLEAN')
     expect(shortcut.user).toContain('do not summarize or compress')
     expect(shortcut.user).toContain('Keep the same vocabulary')

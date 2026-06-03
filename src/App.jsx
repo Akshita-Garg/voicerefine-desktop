@@ -147,7 +147,7 @@ function App() {
     try {
       const currentIntent = localStorage.getItem('vr_intent') ?? 'clean'
       const { system, user } = composePrompt({ intent: currentIntent, mode, transcript: rawTranscript })
-      const output = await refine({ system, user, mode })
+      const output = await refine({ system, user, mode, intent: currentIntent })
       setRefinedOutput(output)
       console.log('[pipeline] main refinement complete', {
         intent: currentIntent,

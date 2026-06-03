@@ -47,7 +47,7 @@ async function refineForPaste(transcript) {
   const { intent, mode } = settings
   const { system, user } = composeShortcutPrompt({ intent, mode, transcript })
   const maxTokens = calculateShortcutMaxTokens(transcript, { intent })
-  const output = await refine({ system, user, mode, providerConfig: settings, maxTokens })
+  const output = await refine({ system, user, mode, intent, providerConfig: settings, maxTokens })
   return {
     intent,
     mode,
