@@ -30,6 +30,11 @@ function readProvider() {
   return stored === 'browser' || stored === 'ollama' ? 'builtin' : stored
 }
 
+function readMode() {
+  const stored = localStorage.getItem('vr_mode')
+  return MODES.some(mode => mode.value === stored) ? stored : 'light'
+}
+
 function readOnboardingDone() {
   return !!localStorage.getItem('vr_onboarding_done')
 }
@@ -40,7 +45,7 @@ function App() {
   const [isTranscribing, setIsTranscribing]   = useState(false)
   const [transcribeError, setTranscribeError] = useState(false)
 
-  const [mode, setMode]               = useState('light')
+  const [mode, setMode]               = useState(readMode)
   const [refinedOutput, setRefinedOutput] = useState('')
   const [isRefining, setIsRefining]   = useState(false)
   const [isLoadingRefinementModel, setIsLoadingRefinementModel] = useState(false)
@@ -143,6 +148,11 @@ function App() {
   const handleIntentChange = (val) => {
     localStorage.setItem('vr_intent', val)
     setIntent(val)
+  }
+
+  const handleModeChange = (val) => {
+    localStorage.setItem('vr_mode', val)
+    setMode(val)
   }
 
   const currentMode = MODES.find(m => m.value === mode)
@@ -361,7 +371,7 @@ function App() {
                   return (
                     <Tooltip key={value} text={description} align="right">
                       <button
-                        onClick={() => setMode(value)}
+                        onClick={() => handleModeChange(value)}
                         className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
                           active
                             ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'

@@ -2,6 +2,8 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
 import { transcribe } from './services/asr'
+import { refine } from './services/llm'
+import { composePrompt } from './utils/composePrompt'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -12,6 +14,32 @@ function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
   const seconds = (totalSeconds % 60).toString().padStart(2, '0')
   return `${minutes}:${seconds}`
+}
+
+const VALID_INTENTS = new Set(['clean', 'compose', 'prepare'])
+const VALID_MODES = new Set(['light', 'bullets', 'document'])
+
+function readOverlayIntent() {
+  const stored = localStorage.getItem('vr_intent')
+  return VALID_INTENTS.has(stored) ? stored : 'clean'
+}
+
+function readOverlayMode() {
+  const stored = localStorage.getItem('vr_mode')
+  return VALID_MODES.has(stored) ? stored : 'light'
+}
+
+async function refineForPaste(transcript) {
+  const intent = readOverlayIntent()
+  const mode = readOverlayMode()
+  const { system, user } = composePrompt({ intent, mode, transcript })
+  const output = await refine({ system, user, mode })
+  return {
+    intent,
+    mode,
+    text: output?.trim() ? output : transcript,
+    refined: !!output?.trim(),
+  }
 }
 
 function Overlay() {
@@ -67,11 +95,27 @@ function Overlay() {
         try {
           const startedAt = Date.now()
           const text = await transcribe(blob)
-          setTranscript(text)
+          let output = text
+          let refinement = { refined: false, intent: readOverlayIntent(), mode: readOverlayMode() }
+
+          try {
+            setStatus('refining')
+            refinement = await refineForPaste(text)
+            output = refinement.text
+          } catch (err) {
+            console.warn('[overlay] refinement failed, pasting transcript', err)
+          }
+
+          setTranscript(output)
           setStatus('complete')
           window.voicerefine.overlayTranscriptionComplete({
-            text,
-            chars: text.length,
+            text: output,
+            rawText: text,
+            chars: output.length,
+            rawChars: text.length,
+            refined: refinement.refined,
+            intent: refinement.intent,
+            mode: refinement.mode,
             durationMs: Date.now() - startedAt,
           })
         } catch (err) {
@@ -128,17 +172,19 @@ function Overlay() {
   }, [])
 
   const isRecording = status === 'recording'
-  const isBusy = status === 'starting' || status === 'stopping' || status === 'transcribing'
+  const isBusy = status === 'starting' || status === 'stopping' || status === 'transcribing' || status === 'refining'
   const isComplete = status === 'complete'
   const title =
     status === 'error' ? 'Something went wrong'
       : status === 'paste-error' ? 'Paste failed'
       : status === 'transcribing' ? 'Transcribing...'
+        : status === 'refining' ? 'Refining...'
         : isBusy ? 'Preparing...'
           : isComplete ? 'Inserted'
             : 'Recording...'
   const subtitle =
     status === 'transcribing' ? 'Converting your recording locally'
+      : status === 'refining' ? 'Polishing with your selected mode'
       : status === 'paste-error' ? 'Transcript copied. Paste manually with Ctrl+V.'
       : isComplete ? (transcript || 'No speech detected')
         : `Press ${HOTKEY_LABEL} again or Esc`
