@@ -15,7 +15,7 @@ const REFINEMENT_CHOICES = [
     value: REFINEMENT_MODE_TRANSFORM,
     Icon: Sparkles,
     label: 'Transform',
-    description: 'Use a prompt and a model to rewrite the transcript into another form.',
+    description: 'Use a model to either write for clarity or write with structure.',
   },
 ]
 
@@ -31,7 +31,7 @@ function Step1({ refinementMode, onSelect, onContinue }) {
     <div className="flex flex-col items-center gap-8 w-full max-w-xl">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">How do you want VoiceRefine to behave?</h1>
-        <p className="text-sm text-[#8A766E]">Choose between instant cleanup and prompt-driven transforms.</p>
+        <p className="text-sm text-[#8A766E]">Choose between instant cleanup and richer transformed writing.</p>
       </div>
 
       <div className="flex flex-col gap-3 w-full">

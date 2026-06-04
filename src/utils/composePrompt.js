@@ -1,5 +1,5 @@
 export const TRANSFORM_PRESETS = {
-  rewrite: {
+  clarity: {
     label: 'Rewrite for Clarity',
     description: 'Smooth the wording while keeping the meaning and tone.',
     prompt: `Rewrite this transcript for clarity.
@@ -7,47 +7,26 @@ export const TRANSFORM_PRESETS = {
 Requirements:
 - Keep the meaning, order, and tone of the original.
 - Smooth wording and sentence structure.
+- Output prose only.
+- Do not use bullets, headings, or sections.
 - Do not add new facts, examples, arguments, greetings, or sign-offs.
 - Return only the rewritten text.`,
   },
-  bullets: {
-    label: 'Turn into Bullets',
-    description: 'Convert the transcript into a clean bulleted list.',
-    prompt: `Turn this transcript into bullets.
-
-Requirements:
-- Output bullets only.
-- Start every bullet with "- ".
-- Preserve the speaker's ideas accurately.
-- Do not add an introduction, title, summary, or conclusion.
-- Return only the bullet list.`,
-  },
-  message: {
-    label: 'Turn into a Message',
-    description: 'Make it ready to send as written text.',
-    prompt: `Turn this transcript into a ready-to-send message.
+  structure: {
+    label: 'Write with Structure',
+    description: 'Organize the content into the most helpful structure.',
+    prompt: `Rewrite this transcript with structure.
 
 Requirements:
 - Keep the speaker's meaning and tone.
-- Improve clarity and flow.
-- Do not add extra context, greetings, or sign-offs unless already implied in the transcript.
-- Return only the message text.`,
-  },
-  speaking: {
-    label: 'Prepare for Speaking',
-    description: 'Make it sound natural to say aloud.',
-    prompt: `Prepare this transcript for speaking out loud.
-
-Requirements:
-- Improve cadence, confidence, and flow.
-- Remove rehearsal artifacts and false starts.
-- Keep it natural and easy to say.
-- Do not turn it into stiff formal writing.
-- Return only the spoken version.`,
+- Organize the content into helpful paragraphs, bullets, or short sections when useful.
+- Use bullets or headings only when they genuinely help readability.
+- Do not add new facts, examples, arguments, greetings, or sign-offs.
+- Return only the structured text.`,
   },
 }
 
-export const DEFAULT_TRANSFORM_PRESET = 'rewrite'
+export const DEFAULT_TRANSFORM_PRESET = 'clarity'
 
 export function normalizeTransformPreset(value) {
   return value in TRANSFORM_PRESETS ? value : DEFAULT_TRANSFORM_PRESET

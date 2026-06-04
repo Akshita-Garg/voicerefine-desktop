@@ -50,11 +50,11 @@ describe('transform presets', () => {
 describe('composeShortcutTransformPrompt', () => {
   it('creates a compact shortcut prompt', () => {
     const full = composeTransformPrompt({
-      prompt: defaultPromptForPreset('rewrite'),
+      prompt: defaultPromptForPreset('clarity'),
       transcript,
     })
     const shortcut = composeShortcutTransformPrompt({
-      prompt: defaultPromptForPreset('rewrite'),
+      prompt: defaultPromptForPreset('clarity'),
       transcript,
     })
 
@@ -67,5 +67,19 @@ describe('composeShortcutTransformPrompt', () => {
   it('throws when the shortcut transform prompt is empty', () => {
     expect(() => composeShortcutTransformPrompt({ prompt: '', transcript }))
       .toThrow('Transform prompt is empty.')
+  })
+})
+
+describe('transform prompt presets', () => {
+  it('keeps clarity focused on prose only', () => {
+    const prompt = defaultPromptForPreset('clarity')
+    expect(prompt).toContain('Output prose only.')
+    expect(prompt).toContain('Do not use bullets, headings, or sections.')
+  })
+
+  it('lets structure choose paragraphs, bullets, or sections when helpful', () => {
+    const prompt = defaultPromptForPreset('structure')
+    expect(prompt).toContain('paragraphs, bullets, or short sections')
+    expect(prompt).toContain('Use bullets or headings only when they genuinely help readability.')
   })
 })

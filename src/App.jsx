@@ -83,7 +83,6 @@ function App() {
   const [refinementMode, setRefinementMode] = useState(readRefinementMode)
   const [transformPreset, setTransformPreset] = useState(readTransformPreset)
   const [transformPrompt, setTransformPrompt] = useState(readTransformPrompt)
-  const transformPromptRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -281,32 +280,69 @@ function App() {
           )}
         </div>
 
-        <div className="flex gap-5 w-full max-w-5xl items-start">
-          <div className="w-52 flex-shrink-0 pt-1">
-            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Output</p>
-            <div className="flex flex-col gap-2">
+        <div className="w-full max-w-5xl flex flex-col gap-5">
+          <div className="rounded-xl p-5"
+            style={{ background: 'rgba(213, 120, 105, 0.08)', border: '1px solid rgba(213, 120, 105, 0.25)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
+          >
+            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Output</p>
+            <div className="flex flex-col gap-3">
               {REFINEMENT_MODES.map(({ value, Icon, label, description }) => {
                 const active = refinementMode === value
                 return (
-                  <Tooltip key={value} text={description} align="right">
-                    <button
-                      onClick={() => handleRefinementModeChange(value)}
-                      className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
-                        active
-                          ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                          : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                      }`}
-                    >
-                      <Icon size={14} strokeWidth={1.75} color={active ? '#6FA287' : '#5C4B44'} />
-                      {label}
-                    </button>
-                  </Tooltip>
+                  <div key={value} className="flex flex-col gap-2">
+                    <Tooltip text={description} align="left">
+                      <button
+                        onClick={() => handleRefinementModeChange(value)}
+                        className={`w-full px-4 py-3 rounded-[12px] text-sm text-left flex items-start gap-3 transition-colors duration-150 ${
+                          active
+                            ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A]'
+                            : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                        }`}
+                      >
+                        <Icon size={16} strokeWidth={1.75} color={active ? '#6FA287' : '#5C4B44'} className="mt-0.5 flex-shrink-0" />
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-medium">{label}</span>
+                          <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
+                        </span>
+                      </button>
+                    </Tooltip>
+
+                    {value === REFINEMENT_MODE_TRANSFORM && active && (
+                      <div className="pl-5 flex flex-col gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {Object.entries(TRANSFORM_PRESETS).map(([presetValue, preset]) => {
+                            const presetActive = transformPreset === presetValue
+                            return (
+                              <Tooltip key={presetValue} text={preset.description} align="left">
+                                <button
+                                  onClick={() => handlePresetChange(presetValue)}
+                                  className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
+                                    presetActive
+                                      ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                                      : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                                  }`}
+                                >
+                                  {preset.label}
+                                </button>
+                              </Tooltip>
+                            )
+                          })}
+                        </div>
+                        <textarea
+                          value={transformPrompt}
+                          onChange={e => handlePromptChange(e.target.value)}
+                          className="w-full h-36 rounded-xl border border-[rgba(58,47,42,0.08)] bg-[rgba(255,255,255,0.28)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
+                          placeholder="Edit the transform prompt here."
+                        />
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-2 gap-6 min-w-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
             <div
               className="rounded-xl p-5"
               style={{ background: 'rgba(213, 120, 105, 0.12)', border: '1px solid rgba(213, 120, 105, 0.4)', boxShadow: '0 1px 3px rgba(58,47,42,0.06)' }}
@@ -371,44 +407,6 @@ function App() {
                 )}
               </div>
             </div>
-          </div>
-
-          <div className={`w-72 flex-shrink-0 pt-1 ${refinementMode === REFINEMENT_MODE_TRANSFORM ? '' : 'opacity-50'}`}>
-            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Transform</p>
-            {refinementMode === REFINEMENT_MODE_TRANSFORM ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2">
-                  {Object.entries(TRANSFORM_PRESETS).map(([value, preset]) => {
-                    const active = transformPreset === value
-                    return (
-                      <Tooltip key={value} text={preset.description} align="left">
-                        <button
-                          onClick={() => handlePresetChange(value)}
-                          className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
-                            active
-                              ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                              : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-                <textarea
-                  ref={transformPromptRef}
-                  value={transformPrompt}
-                  onChange={e => handlePromptChange(e.target.value)}
-                  className="w-full h-44 rounded-xl border border-[rgba(58,47,42,0.08)] bg-[rgba(255,255,255,0.28)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
-                  placeholder="Edit the transform prompt here."
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-[#8A766E]">
-                Clean mode skips the LLM and only removes speech artifacts while preserving your wording.
-              </p>
-            )}
           </div>
         </div>
       </main>

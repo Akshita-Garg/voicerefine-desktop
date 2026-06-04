@@ -28,8 +28,8 @@ describe('refinementSettings', () => {
   })
 
   it('reads the stored transform preset with fallback', () => {
-    expect(readTransformPreset(storage({ vr_transform_preset: 'message' }))).toBe('message')
-    expect(readTransformPreset(storage({ vr_transform_preset: 'nope' }))).toBe('rewrite')
+    expect(readTransformPreset(storage({ vr_transform_preset: 'clarity' }))).toBe('clarity')
+    expect(readTransformPreset(storage({ vr_transform_preset: 'nope' }))).toBe('clarity')
   })
 
   it('reads the stored transform prompt with preset fallback', () => {
