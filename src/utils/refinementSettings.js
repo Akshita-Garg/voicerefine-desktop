@@ -2,6 +2,8 @@ import { DEFAULT_TRANSFORM_PRESET, defaultPromptForPreset, normalizeTransformPre
 
 export const REFINEMENT_MODE_CLEAN = 'clean'
 export const REFINEMENT_MODE_TRANSFORM = 'transform'
+export const TRANSFORM_PROMPT_MODE_PRESET = 'preset'
+export const TRANSFORM_PROMPT_MODE_CUSTOM = 'custom'
 
 export function normalizeRefinementMode(value) {
   return value === REFINEMENT_MODE_TRANSFORM ? REFINEMENT_MODE_TRANSFORM : REFINEMENT_MODE_CLEAN
@@ -15,8 +17,36 @@ export function readTransformPreset(storage = globalThis.localStorage) {
   return normalizeTransformPreset(storage?.getItem('vr_transform_preset') ?? DEFAULT_TRANSFORM_PRESET)
 }
 
+export function normalizeTransformPromptMode(value) {
+  return value === TRANSFORM_PROMPT_MODE_CUSTOM ? TRANSFORM_PROMPT_MODE_CUSTOM : TRANSFORM_PROMPT_MODE_PRESET
+}
+
+export function readTransformPromptMode(storage = globalThis.localStorage) {
+  return normalizeTransformPromptMode(storage?.getItem('vr_transform_prompt_mode'))
+}
+
+export function promptStorageKeyForPreset(preset) {
+  return `vr_transform_prompt_${normalizeTransformPreset(preset)}`
+}
+
+export function readTransformPromptForPreset(preset, storage = globalThis.localStorage) {
+  const normalizedPreset = normalizeTransformPreset(preset)
+  if (readTransformPromptMode(storage) !== TRANSFORM_PROMPT_MODE_CUSTOM) {
+    return defaultPromptForPreset(normalizedPreset)
+  }
+
+  const stored = storage?.getItem(promptStorageKeyForPreset(normalizedPreset))?.trim()
+  const legacyStored = storage?.getItem('vr_transform_prompt')?.trim()
+  return stored || legacyStored || defaultPromptForPreset(normalizedPreset)
+}
+
 export function readTransformPrompt(storage = globalThis.localStorage) {
   const preset = readTransformPreset(storage)
-  const stored = storage?.getItem('vr_transform_prompt')?.trim()
-  return stored || defaultPromptForPreset(preset)
+  return readTransformPromptForPreset(preset, storage)
+}
+
+export function readStoredPromptDraftForPreset(preset, storage = globalThis.localStorage) {
+  const normalizedPreset = normalizeTransformPreset(preset)
+  const stored = storage?.getItem(promptStorageKeyForPreset(normalizedPreset))?.trim()
+  return stored || defaultPromptForPreset(normalizedPreset)
 }

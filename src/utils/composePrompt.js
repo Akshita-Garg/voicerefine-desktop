@@ -1,26 +1,27 @@
 export const TRANSFORM_PRESETS = {
   clarity: {
-    label: 'Rewrite for Clarity',
-    description: 'Smooth the wording while keeping the meaning and tone.',
+    label: 'Write for Clarity',
+    description: 'Rewrite as clear prose without adding structure.',
     prompt: `Rewrite this transcript for clarity.
 
 Requirements:
-- Keep the meaning, order, and tone of the original.
-- Smooth wording and sentence structure.
 - Output prose only.
-- Do not use bullets, headings, or sections.
+- Keep the speaker's meaning, order, and tone.
+- Improve wording, sentence flow, and readability.
+- Do not add bullets, headings, sections, numbered lists, or labels.
 - Do not add new facts, examples, arguments, greetings, or sign-offs.
-- Return only the rewritten text.`,
+- Return only the rewritten prose.`,
   },
   structure: {
     label: 'Write with Structure',
-    description: 'Organize the content into the most helpful structure.',
+    description: 'Organize the transcript into readable sections or bullets.',
     prompt: `Rewrite this transcript with structure.
 
 Requirements:
-- Keep the speaker's meaning and tone.
-- Organize the content into helpful paragraphs, bullets, or short sections when useful.
-- Use bullets or headings only when they genuinely help readability.
+- Preserve the speaker's meaning, tone, and important order.
+- Organize the content for readability.
+- Use short headings, bullets, numbered steps, or paragraphs when helpful.
+- Do not force bullets if paragraphs are clearer.
 - Do not add new facts, examples, arguments, greetings, or sign-offs.
 - Return only the structured text.`,
   },

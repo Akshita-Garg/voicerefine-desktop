@@ -74,12 +74,12 @@ describe('transform prompt presets', () => {
   it('keeps clarity focused on prose only', () => {
     const prompt = defaultPromptForPreset('clarity')
     expect(prompt).toContain('Output prose only.')
-    expect(prompt).toContain('Do not use bullets, headings, or sections.')
+    expect(prompt).toContain('Do not add bullets, headings, sections, numbered lists, or labels.')
   })
 
   it('lets structure choose paragraphs, bullets, or sections when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('paragraphs, bullets, or short sections')
-    expect(prompt).toContain('Use bullets or headings only when they genuinely help readability.')
+    expect(prompt).toContain('Use short headings, bullets, numbered steps, or paragraphs when helpful.')
+    expect(prompt).toContain('Do not force bullets if paragraphs are clearer.')
   })
 })

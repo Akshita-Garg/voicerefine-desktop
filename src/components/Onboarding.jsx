@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { Eraser, Sparkles } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import { DEFAULT_TRANSFORM_PRESET, defaultPromptForPreset } from '../utils/composePrompt'
-import { REFINEMENT_MODE_CLEAN, REFINEMENT_MODE_TRANSFORM } from '../utils/refinementSettings'
+import {
+  REFINEMENT_MODE_CLEAN,
+  REFINEMENT_MODE_TRANSFORM,
+  TRANSFORM_PROMPT_MODE_PRESET,
+  promptStorageKeyForPreset,
+} from '../utils/refinementSettings'
 
 const REFINEMENT_CHOICES = [
   {
@@ -15,7 +20,7 @@ const REFINEMENT_CHOICES = [
     value: REFINEMENT_MODE_TRANSFORM,
     Icon: Sparkles,
     label: 'Transform',
-    description: 'Use a model to either write for clarity or write with structure.',
+    description: 'Use a model to write clearer prose or organize longer thoughts.',
   },
 ]
 
@@ -109,7 +114,9 @@ function Step2({ onComplete }) {
   const handleComplete = () => {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_transform_preset', DEFAULT_TRANSFORM_PRESET)
-    localStorage.setItem('vr_transform_prompt', defaultPromptForPreset(DEFAULT_TRANSFORM_PRESET))
+    localStorage.setItem('vr_transform_prompt_mode', TRANSFORM_PROMPT_MODE_PRESET)
+    localStorage.setItem(promptStorageKeyForPreset('clarity'), defaultPromptForPreset('clarity'))
+    localStorage.setItem(promptStorageKeyForPreset('structure'), defaultPromptForPreset('structure'))
     if (needsKey && apiKey) localStorage.setItem('vr_api_key', apiKey)
     else localStorage.removeItem('vr_api_key')
     onComplete()
@@ -208,7 +215,9 @@ export function Onboarding({ onComplete }) {
     if (refinementMode === REFINEMENT_MODE_CLEAN) {
       localStorage.setItem('vr_provider', 'builtin')
       localStorage.setItem('vr_transform_preset', DEFAULT_TRANSFORM_PRESET)
-      localStorage.setItem('vr_transform_prompt', defaultPromptForPreset(DEFAULT_TRANSFORM_PRESET))
+      localStorage.setItem('vr_transform_prompt_mode', TRANSFORM_PROMPT_MODE_PRESET)
+      localStorage.setItem(promptStorageKeyForPreset('clarity'), defaultPromptForPreset('clarity'))
+      localStorage.setItem(promptStorageKeyForPreset('structure'), defaultPromptForPreset('structure'))
       localStorage.setItem('vr_onboarding_done', 'true')
       setFading(true)
       fadeTimerRef.current = setTimeout(onComplete, 500)

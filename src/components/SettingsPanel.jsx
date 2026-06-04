@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 import { validateKey } from '../services/llm'
+import { TRANSFORM_PRESETS, defaultPromptForPreset } from '../utils/composePrompt'
+import {
+  TRANSFORM_PROMPT_MODE_CUSTOM,
+  TRANSFORM_PROMPT_MODE_PRESET,
+  promptStorageKeyForPreset,
+  readStoredPromptDraftForPreset,
+  readTransformPromptMode,
+} from '../utils/refinementSettings'
 import {
   currentNativeAsrModel,
   NATIVE_ASR_MODEL_COHERE_Q4,
@@ -39,6 +47,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [provider, setProvider] = useState('builtin')
   const [apiKey, setApiKey] = useState('')
   const [nativeAsrModel, setNativeAsrModel] = useState(NATIVE_ASR_MODEL_PARAKEET_Q4)
+  const [transformPromptMode, setTransformPromptMode] = useState(TRANSFORM_PROMPT_MODE_PRESET)
+  const [clarityPrompt, setClarityPrompt] = useState('')
+  const [structurePrompt, setStructurePrompt] = useState('')
   const [asrModelStatus, setAsrModelStatus] = useState('idle')
   const [keyStatus, setKeyStatus] = useState('idle')
   const [keyError, setKeyError] = useState('')
@@ -50,6 +61,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setProvider(stored === 'browser' || stored === 'ollama' ? 'builtin' : stored)
     setApiKey(localStorage.getItem('vr_api_key') ?? '')
     setNativeAsrModel(currentNativeAsrModel())
+    setTransformPromptMode(readTransformPromptMode())
+    setClarityPrompt(readStoredPromptDraftForPreset('clarity'))
+    setStructurePrompt(readStoredPromptDraftForPreset('structure'))
     setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
@@ -111,6 +125,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     } else {
       localStorage.removeItem('vr_api_key')
     }
+    localStorage.setItem('vr_transform_prompt_mode', transformPromptMode)
+    localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
+    localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
     onSaved?.()
     onClose()
   }
@@ -230,6 +247,88 @@ export function SettingsPanel({ open, onClose, onSaved }) {
             {asrModelStatus === 'loading' && <p className="mt-2 text-xs text-[#8A766E]">Loading selected transcription model...</p>}
             {asrModelStatus === 'ready' && <p className="mt-2 text-xs text-[#5C8F70]">Selected transcription model is ready.</p>}
             {asrModelStatus === 'error' && <p className="mt-2 text-xs text-red-700">Could not preload the selected transcription model.</p>}
+          </section>
+
+          <section>
+            <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transform Prompts</h3>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="transform-prompt-mode"
+                  value={TRANSFORM_PROMPT_MODE_PRESET}
+                  checked={transformPromptMode === TRANSFORM_PROMPT_MODE_PRESET}
+                  onChange={() => setTransformPromptMode(TRANSFORM_PROMPT_MODE_PRESET)}
+                  className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm text-[#3A2F2A] font-medium">Use built-in prompts</span>
+                  <span className="text-xs text-[#8A766E] leading-snug">Recommended. VoiceRefine uses tuned prompts for clarity and structure.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="transform-prompt-mode"
+                  value={TRANSFORM_PROMPT_MODE_CUSTOM}
+                  checked={transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM}
+                  onChange={() => setTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)}
+                  className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm text-[#3A2F2A] font-medium">Use custom prompts</span>
+                  <span className="text-xs text-[#8A766E] leading-snug">Advanced. Edit the prompt behind each transform option.</span>
+                </span>
+              </label>
+            </div>
+
+            {transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM && (
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="clarity-prompt" className="text-sm font-medium text-[#3A2F2A]">
+                      {TRANSFORM_PRESETS.clarity.label}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setClarityPrompt(defaultPromptForPreset('clarity'))}
+                      className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <textarea
+                    id="clarity-prompt"
+                    value={clarityPrompt}
+                    onChange={e => setClarityPrompt(e.target.value)}
+                    className="w-full h-40 rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
+                    style={{ background: '#E6CFC7' }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="structure-prompt" className="text-sm font-medium text-[#3A2F2A]">
+                      {TRANSFORM_PRESETS.structure.label}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setStructurePrompt(defaultPromptForPreset('structure'))}
+                      className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <textarea
+                    id="structure-prompt"
+                    value={structurePrompt}
+                    onChange={e => setStructurePrompt(e.target.value)}
+                    className="w-full h-40 rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
+                    style={{ background: '#E6CFC7' }}
+                  />
+                </div>
+              </div>
+            )}
           </section>
         </div>
 

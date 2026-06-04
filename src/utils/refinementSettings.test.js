@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   REFINEMENT_MODE_CLEAN,
   REFINEMENT_MODE_TRANSFORM,
+  TRANSFORM_PROMPT_MODE_CUSTOM,
+  TRANSFORM_PROMPT_MODE_PRESET,
   normalizeRefinementMode,
+  normalizeTransformPromptMode,
+  promptStorageKeyForPreset,
   readRefinementMode,
   readTransformPreset,
   readTransformPrompt,
+  readTransformPromptForPreset,
+  readTransformPromptMode,
 } from './refinementSettings'
 
 function storage(values = {}) {
@@ -33,7 +39,31 @@ describe('refinementSettings', () => {
   })
 
   it('reads the stored transform prompt with preset fallback', () => {
-    expect(readTransformPrompt(storage({ vr_transform_prompt: 'Custom prompt' }))).toBe('Custom prompt')
     expect(readTransformPrompt(storage())).toContain('Rewrite this transcript for clarity.')
+  })
+
+  it('keeps built-in prompts unless custom prompt mode is enabled', () => {
+    expect(readTransformPrompt(storage({
+      vr_transform_prompt_mode: TRANSFORM_PROMPT_MODE_PRESET,
+      [promptStorageKeyForPreset('clarity')]: 'Custom clarity prompt',
+    }))).toContain('Rewrite this transcript for clarity.')
+  })
+
+  it('reads the custom prompt for the selected transform preset', () => {
+    const customStorage = storage({
+      vr_transform_prompt_mode: TRANSFORM_PROMPT_MODE_CUSTOM,
+      vr_transform_preset: 'structure',
+      [promptStorageKeyForPreset('clarity')]: 'Custom clarity prompt',
+      [promptStorageKeyForPreset('structure')]: 'Custom structure prompt',
+    })
+
+    expect(readTransformPrompt(customStorage)).toBe('Custom structure prompt')
+    expect(readTransformPromptForPreset('clarity', customStorage)).toBe('Custom clarity prompt')
+  })
+
+  it('normalizes transform prompt mode', () => {
+    expect(normalizeTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)).toBe(TRANSFORM_PROMPT_MODE_CUSTOM)
+    expect(normalizeTransformPromptMode('unknown')).toBe(TRANSFORM_PROMPT_MODE_PRESET)
+    expect(readTransformPromptMode(storage({ vr_transform_prompt_mode: TRANSFORM_PROMPT_MODE_CUSTOM }))).toBe(TRANSFORM_PROMPT_MODE_CUSTOM)
   })
 })

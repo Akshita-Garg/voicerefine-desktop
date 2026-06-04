@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Eraser, Sparkles, Copy, Check, Settings2 } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
 import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
-import { composeTransformPrompt, DEFAULT_TRANSFORM_PRESET, TRANSFORM_PRESETS, defaultPromptForPreset, normalizeTransformPreset } from './utils/composePrompt'
+import { composeTransformPrompt, DEFAULT_TRANSFORM_PRESET, TRANSFORM_PRESETS, normalizeTransformPreset } from './utils/composePrompt'
 import { cleanTranscriptText, refine, warmBuiltinRefinement } from './services/llm'
 import {
   REFINEMENT_MODE_CLEAN,
@@ -16,18 +16,26 @@ import {
   readTransformPrompt,
 } from './utils/refinementSettings'
 
-const REFINEMENT_MODES = [
+const OUTPUT_CHOICES = [
   {
-    value: REFINEMENT_MODE_CLEAN,
+    kind: REFINEMENT_MODE_CLEAN,
     Icon: Eraser,
     label: 'Clean',
     description: 'Fast cleanup with no LLM. Keeps your wording and removes speech artifacts.',
   },
   {
-    value: REFINEMENT_MODE_TRANSFORM,
+    kind: REFINEMENT_MODE_TRANSFORM,
+    preset: 'clarity',
     Icon: Sparkles,
-    label: 'Transform',
-    description: 'Use a prompt to reshape the transcript into another form.',
+    label: TRANSFORM_PRESETS.clarity.label,
+    description: TRANSFORM_PRESETS.clarity.description,
+  },
+  {
+    kind: REFINEMENT_MODE_TRANSFORM,
+    preset: 'structure',
+    Icon: Sparkles,
+    label: TRANSFORM_PRESETS.structure.label,
+    description: TRANSFORM_PRESETS.structure.description,
   },
 ]
 
@@ -82,7 +90,6 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [refinementMode, setRefinementMode] = useState(readRefinementMode)
   const [transformPreset, setTransformPreset] = useState(readTransformPreset)
-  const [transformPrompt, setTransformPrompt] = useState(readTransformPrompt)
 
   useEffect(() => {
     let cancelled = false
@@ -113,13 +120,11 @@ function App() {
     }
   }
 
-  const saveRefinementState = ({ nextMode = refinementMode, nextPreset = transformPreset, nextPrompt = transformPrompt } = {}) => {
+  const saveRefinementState = ({ nextMode = refinementMode, nextPreset = transformPreset } = {}) => {
     localStorage.setItem('vr_refinement_mode', nextMode)
     localStorage.setItem('vr_transform_preset', nextPreset)
-    localStorage.setItem('vr_transform_prompt', nextPrompt)
     setRefinementMode(nextMode)
     setTransformPreset(nextPreset)
-    setTransformPrompt(nextPrompt)
     void syncRefinementSettings()
   }
 
@@ -160,7 +165,7 @@ function App() {
         nextOutput = cleanTranscriptText(transcript)
       } else {
         const { system, user } = composeTransformPrompt({
-          prompt: transformPrompt,
+          prompt: readTransformPrompt(),
           transcript,
         })
         nextOutput = await refine({
@@ -187,22 +192,18 @@ function App() {
     warmSelectedRefinementProvider()
   }
 
-  const handleRefinementModeChange = (value) => {
-    saveRefinementState({ nextMode: normalizeRefinementMode(value) })
-  }
+  const handleOutputChoice = ({ kind, preset }) => {
+    const nextMode = normalizeRefinementMode(kind)
+    if (nextMode === REFINEMENT_MODE_CLEAN) {
+      saveRefinementState({ nextMode })
+      return
+    }
 
-  const handlePresetChange = (preset) => {
     const nextPreset = normalizeTransformPreset(preset)
     saveRefinementState({
+      nextMode,
       nextPreset,
-      nextPrompt: defaultPromptForPreset(nextPreset),
     })
-  }
-
-  const handlePromptChange = (value) => {
-    localStorage.setItem('vr_transform_prompt', value)
-    setTransformPrompt(value)
-    void syncRefinementSettings()
   }
 
   const processingLabel = refinementMode === REFINEMENT_MODE_CLEAN
@@ -236,7 +237,7 @@ function App() {
             style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[#4A7A5E]">Tip: Clean is the fast local path. Transform uses a prompt and can use a model provider.</span>
+              <span className="text-sm text-[#4A7A5E]">Tip: Clean is fastest. Clarity rewrites as prose. Structure organizes longer thoughts.</span>
               <button
                 onClick={() => setTipDismissed(true)}
                 className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
@@ -286,13 +287,16 @@ function App() {
           >
             <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Output</p>
             <div className="flex flex-col gap-3">
-              {REFINEMENT_MODES.map(({ value, Icon, label, description }) => {
-                const active = refinementMode === value
+              {OUTPUT_CHOICES.map((choice) => {
+                const { kind, preset, Icon, label, description } = choice
+                const active = kind === REFINEMENT_MODE_CLEAN
+                  ? refinementMode === REFINEMENT_MODE_CLEAN
+                  : refinementMode === REFINEMENT_MODE_TRANSFORM && transformPreset === preset
                 return (
-                  <div key={value} className="flex flex-col gap-2">
+                  <div key={preset ?? kind} className="flex flex-col gap-2">
                     <Tooltip text={description} align="left">
                       <button
-                        onClick={() => handleRefinementModeChange(value)}
+                        onClick={() => handleOutputChoice(choice)}
                         className={`w-full px-4 py-3 rounded-[12px] text-sm text-left flex items-start gap-3 transition-colors duration-150 ${
                           active
                             ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A]'
@@ -306,36 +310,6 @@ function App() {
                         </span>
                       </button>
                     </Tooltip>
-
-                    {value === REFINEMENT_MODE_TRANSFORM && active && (
-                      <div className="pl-5 flex flex-col gap-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {Object.entries(TRANSFORM_PRESETS).map(([presetValue, preset]) => {
-                            const presetActive = transformPreset === presetValue
-                            return (
-                              <Tooltip key={presetValue} text={preset.description} align="left">
-                                <button
-                                  onClick={() => handlePresetChange(presetValue)}
-                                  className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
-                                    presetActive
-                                      ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                                      : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                                  }`}
-                                >
-                                  {preset.label}
-                                </button>
-                              </Tooltip>
-                            )
-                          })}
-                        </div>
-                        <textarea
-                          value={transformPrompt}
-                          onChange={e => handlePromptChange(e.target.value)}
-                          className="w-full h-36 rounded-xl border border-[rgba(58,47,42,0.08)] bg-[rgba(255,255,255,0.28)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
-                          placeholder="Edit the transform prompt here."
-                        />
-                      </div>
-                    )}
                   </div>
                 )
               })}
@@ -424,7 +398,6 @@ function App() {
             setProvider(readProvider())
             setRefinementMode(readRefinementMode())
             setTransformPreset(readTransformPreset())
-            setTransformPrompt(readTransformPrompt())
             void syncRefinementSettings()
           }}
         />
