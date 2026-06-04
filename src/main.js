@@ -117,6 +117,21 @@ function positionOverlayWindow() {
   overlayWindow.setPosition(x, y, false);
 }
 
+function showOverlayWindow() {
+  if (!overlayWindow) return;
+
+  positionOverlayWindow();
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlayWindow.moveTop();
+
+  if (typeof overlayWindow.showInactive === 'function') {
+    overlayWindow.showInactive();
+  } else {
+    overlayWindow.show();
+  }
+}
+
 const createOverlayWindow = () => {
   overlayReady = false;
   overlayWindow = new BrowserWindow({
@@ -130,12 +145,16 @@ const createOverlayWindow = () => {
     movable: false,
     show: false,
     focusable: false,
+    hasShadow: false,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
 
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlayWindow.setIgnoreMouseEvents(true);
   overlayWindow.on('closed', () => {
     overlayWindow = null;
   });
@@ -166,8 +185,7 @@ function showOverlayAndStartRecording() {
   }
 
   if (!overlayWindow.isVisible()) {
-    positionOverlayWindow();
-    overlayWindow.showInactive();
+    showOverlayWindow();
     console.log('[overlay] shown');
   }
 
