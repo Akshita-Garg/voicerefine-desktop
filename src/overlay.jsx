@@ -201,7 +201,7 @@ function Overlay() {
       : status === 'refining' ? 'Polishing with your selected mode'
       : status === 'paste-error' ? 'Transcript copied. Paste manually with Ctrl+V.'
       : isComplete ? (transcript || 'No speech detected')
-        : `Press ${HOTKEY_LABEL} again or Esc`
+        : `Press ${HOTKEY_LABEL} again to stop recording`
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center text-[#F7F1EA]">
