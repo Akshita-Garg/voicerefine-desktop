@@ -7,6 +7,7 @@ import {
   NATIVE_ASR_MODEL_FAST,
   NATIVE_ASR_MODEL_PARAKEET_Q4,
   preloadNativeAsrModel,
+  syncSelectedNativeAsrModel,
 } from '../services/asr'
 import { Tooltip } from './Tooltip'
 
@@ -107,6 +108,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     localStorage.setItem('vr_native_asr_model', model)
     setAsrModelStatus('loading')
     try {
+      await syncSelectedNativeAsrModel(model)
       await preloadNativeAsrModel(model)
       setAsrModelStatus('ready')
     } catch (err) {
@@ -119,6 +121,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     localStorage.setItem('vr_provider', provider)
     localStorage.setItem('vr_intent',  intent)
     localStorage.setItem('vr_native_asr_model', nativeAsrModel)
+    void syncSelectedNativeAsrModel(nativeAsrModel)
     if (needsKey) {
       localStorage.setItem('vr_api_key', apiKey)
     } else {

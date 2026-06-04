@@ -20,6 +20,7 @@ let overlayReady = false;
 let overlayRecording = false;
 let overlayProcessing = false;
 let pendingOverlayCommand = null;
+let selectedNativeAsrModel = 'parakeet-q4';
 let refinementSettings = {
   provider: 'builtin',
   apiKey: '',
@@ -269,13 +270,27 @@ app.whenReady().then(() => {
     return await warmBuiltin();
   });
   ipcMain.handle('transcribe-native', async (_event, payload) => {
-    return await transcribeNative(payload);
+    return await transcribeNative({
+      ...payload,
+      model: payload?.model ?? selectedNativeAsrModel,
+    });
   });
   ipcMain.handle('preload-native-asr-model', async (_event, payload) => {
-    return await preloadNativeAsrModel(payload);
+    selectedNativeAsrModel = payload?.model ?? selectedNativeAsrModel;
+    return await preloadNativeAsrModel({
+      ...payload,
+      model: selectedNativeAsrModel,
+    });
   });
   ipcMain.handle('unload-native-asr-models', async (_event, payload) => {
     return await unloadNativeAsrModels(payload);
+  });
+  ipcMain.handle('get-selected-native-asr-model', async () => {
+    return { model: selectedNativeAsrModel };
+  });
+  ipcMain.handle('set-selected-native-asr-model', async (_event, payload) => {
+    selectedNativeAsrModel = payload?.model ?? selectedNativeAsrModel;
+    return { model: selectedNativeAsrModel };
   });
   ipcMain.handle('paste-text-into-active-app', async (_event, text) => {
     return await pasteTextIntoActiveApp(text);

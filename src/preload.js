@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('voicerefine', {
   transcribeNative: (payload) => ipcRenderer.invoke('transcribe-native', payload),
   preloadNativeAsrModel: (payload) => ipcRenderer.invoke('preload-native-asr-model', payload),
   unloadNativeAsrModels: (payload) => ipcRenderer.invoke('unload-native-asr-models', payload),
+  getSelectedNativeAsrModel: () => ipcRenderer.invoke('get-selected-native-asr-model'),
+  setSelectedNativeAsrModel: (payload) => ipcRenderer.invoke('set-selected-native-asr-model', payload),
   pasteTextIntoActiveApp: (text) => ipcRenderer.invoke('paste-text-into-active-app', text),
   getRefinementSettings: () => ipcRenderer.invoke('get-refinement-settings'),
   setRefinementSettings: (settings) => ipcRenderer.invoke('set-refinement-settings', settings),

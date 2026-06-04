@@ -4,7 +4,7 @@ import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
-import { currentNativeAsrModel, preloadNativeAsrModel, transcribe } from './services/asr'
+import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
 import { composePrompt } from './utils/composePrompt'
 import { refine, warmBuiltinRefinement } from './services/llm'
 
@@ -83,9 +83,12 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    preloadNativeAsrModel(currentNativeAsrModel()).catch(err => {
-      if (!cancelled) console.warn('[asr] default model preload failed', err)
-    })
+    const model = currentNativeAsrModel()
+    syncSelectedNativeAsrModel(model)
+      .then(() => preloadNativeAsrModel(model))
+      .catch(err => {
+        if (!cancelled) console.warn('[asr] default model preload failed', err)
+      })
     return () => {
       cancelled = true
     }
