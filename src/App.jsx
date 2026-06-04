@@ -16,26 +16,18 @@ import {
   readTransformPrompt,
 } from './utils/refinementSettings'
 
-const OUTPUT_CHOICES = [
+const REFINEMENT_MODES = [
   {
-    kind: REFINEMENT_MODE_CLEAN,
+    value: REFINEMENT_MODE_CLEAN,
     Icon: Eraser,
     label: 'Clean',
     description: 'Fast cleanup with no LLM. Keeps your wording and removes speech artifacts.',
   },
   {
-    kind: REFINEMENT_MODE_TRANSFORM,
-    preset: 'clarity',
+    value: REFINEMENT_MODE_TRANSFORM,
     Icon: Sparkles,
-    label: TRANSFORM_PRESETS.clarity.label,
-    description: TRANSFORM_PRESETS.clarity.description,
-  },
-  {
-    kind: REFINEMENT_MODE_TRANSFORM,
-    preset: 'structure',
-    Icon: Sparkles,
-    label: TRANSFORM_PRESETS.structure.label,
-    description: TRANSFORM_PRESETS.structure.description,
+    label: 'Transform',
+    description: 'Use a model to write clearer prose or organize longer thoughts.',
   },
 ]
 
@@ -192,16 +184,14 @@ function App() {
     warmSelectedRefinementProvider()
   }
 
-  const handleOutputChoice = ({ kind, preset }) => {
-    const nextMode = normalizeRefinementMode(kind)
-    if (nextMode === REFINEMENT_MODE_CLEAN) {
-      saveRefinementState({ nextMode })
-      return
-    }
+  const handleRefinementModeChange = (value) => {
+    saveRefinementState({ nextMode: normalizeRefinementMode(value) })
+  }
 
+  const handlePresetChange = (preset) => {
     const nextPreset = normalizeTransformPreset(preset)
     saveRefinementState({
-      nextMode,
+      nextMode: REFINEMENT_MODE_TRANSFORM,
       nextPreset,
     })
   }
@@ -287,16 +277,13 @@ function App() {
           >
             <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Output</p>
             <div className="flex flex-col gap-3">
-              {OUTPUT_CHOICES.map((choice) => {
-                const { kind, preset, Icon, label, description } = choice
-                const active = kind === REFINEMENT_MODE_CLEAN
-                  ? refinementMode === REFINEMENT_MODE_CLEAN
-                  : refinementMode === REFINEMENT_MODE_TRANSFORM && transformPreset === preset
+              {REFINEMENT_MODES.map(({ value, Icon, label, description }) => {
+                const active = refinementMode === value
                 return (
-                  <div key={preset ?? kind} className="flex flex-col gap-2">
+                  <div key={value} className="flex flex-col gap-2">
                     <Tooltip text={description} align="left">
                       <button
-                        onClick={() => handleOutputChoice(choice)}
+                        onClick={() => handleRefinementModeChange(value)}
                         className={`w-full px-4 py-3 rounded-[12px] text-sm text-left flex items-start gap-3 transition-colors duration-150 ${
                           active
                             ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A]'
@@ -310,6 +297,31 @@ function App() {
                         </span>
                       </button>
                     </Tooltip>
+
+                    {value === REFINEMENT_MODE_TRANSFORM && active && (
+                      <div className="pl-5 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {Object.entries(TRANSFORM_PRESETS).map(([presetValue, preset]) => {
+                          const presetActive = transformPreset === presetValue
+                          return (
+                            <Tooltip key={presetValue} text={preset.description} align="left">
+                              <button
+                                onClick={() => handlePresetChange(presetValue)}
+                                className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
+                                  presetActive
+                                    ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                                    : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                                }`}
+                              >
+                                <span className="flex flex-col gap-0.5">
+                                  <span>{preset.label}</span>
+                                  <span className="text-xs text-[#8A766E] leading-snug font-normal">{preset.description}</span>
+                                </span>
+                              </button>
+                            </Tooltip>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
