@@ -20,7 +20,7 @@ const REFINEMENT_CHOICES = [
     value: REFINEMENT_MODE_TRANSFORM,
     Icon: Sparkles,
     label: 'Transform',
-    description: 'Use a model to write clearer prose or organize longer thoughts.',
+    description: 'Use a model to smart-format speech or polish and organize longer thoughts.',
   },
 ]
 

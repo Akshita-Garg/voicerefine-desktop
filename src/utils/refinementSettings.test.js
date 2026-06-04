@@ -39,14 +39,14 @@ describe('refinementSettings', () => {
   })
 
   it('reads the stored transform prompt with preset fallback', () => {
-    expect(readTransformPrompt(storage())).toContain('Rewrite this transcript for clarity.')
+    expect(readTransformPrompt(storage())).toContain('Smart-format this voice transcript.')
   })
 
   it('keeps built-in prompts unless custom prompt mode is enabled', () => {
     expect(readTransformPrompt(storage({
       vr_transform_prompt_mode: TRANSFORM_PROMPT_MODE_PRESET,
       [promptStorageKeyForPreset('clarity')]: 'Custom clarity prompt',
-    }))).toContain('Rewrite this transcript for clarity.')
+    }))).toContain('Smart-format this voice transcript.')
   })
 
   it('reads the custom prompt for the selected transform preset', () => {

@@ -1,29 +1,33 @@
 export const TRANSFORM_PRESETS = {
   clarity: {
-    label: 'Write for Clarity',
-    description: 'Rewrite as clear prose without adding structure.',
-    prompt: `Rewrite this transcript for clarity.
+    label: 'Smart Format',
+    description: 'Keep your words, but clean punctuation, lists, asides, and corrections.',
+    prompt: `Smart-format this voice transcript.
 
 Requirements:
-- Output prose only.
-- Keep the speaker's meaning, order, and tone.
-- Improve wording, sentence flow, and readability.
-- Do not add bullets, headings, sections, numbered lists, or labels.
-- Do not add new facts, examples, arguments, greetings, or sign-offs.
-- Return only the rewritten prose.`,
+- Preserve the speaker's vocabulary, meaning, order, and tone.
+- Remove filler words, stutters, repeated starts, and obvious false starts.
+- Apply natural punctuation and capitalization.
+- Split into short paragraphs when the speaker moves to a new thought.
+- Format clear list intent as bullets or numbered steps when the speaker says cues like "first", "second", "one", "two", "three things", or "the following".
+- Put clear side thoughts in parentheses when the speaker says cues like "side note", "quick aside", "by the way", "in brackets", or "in parentheses".
+- Apply corrections when the speaker says cues like "actually", "no wait", "scratch that", or restates a correction.
+- Do not rewrite for style, make the language fancier, add headings, add new facts, or add explanations.
+- Return only the formatted text.`,
   },
   structure: {
-    label: 'Write with Structure',
-    description: 'Organize the transcript into readable sections or bullets.',
-    prompt: `Rewrite this transcript with structure.
+    label: 'Polish & Organize',
+    description: 'Rewrite into clearer, better-structured text.',
+    prompt: `Polish and organize this voice transcript.
 
 Requirements:
-- Preserve the speaker's meaning, tone, and important order.
-- Organize the content for readability.
-- Use short headings, bullets, numbered steps, or paragraphs when helpful.
-- Do not force bullets if paragraphs are clearer.
+- Preserve the speaker's meaning, intent, and important details.
+- Improve wording, grammar, sentence flow, and readability.
+- Group related ideas together, even if the speaker said them out of order.
+- Use paragraphs, bullets, numbered steps, or short headings when they make the output easier to read.
+- Use prose when the content is simple; use structure when the content has multiple ideas, tasks, arguments, or steps.
 - Do not add new facts, examples, arguments, greetings, or sign-offs.
-- Return only the structured text.`,
+- Return only the polished and organized text.`,
   },
 }
 

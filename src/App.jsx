@@ -226,7 +226,7 @@ function App() {
             style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[#4A7A5E]">Tip: Clean is fastest. Clarity rewrites as prose. Structure organizes longer thoughts.</span>
+              <span className="text-sm text-[#4A7A5E]">Tip: Smart Format keeps your voice. Polish & Organize rewrites and structures longer thoughts.</span>
               <button
                 onClick={() => setTipDismissed(true)}
                 className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"

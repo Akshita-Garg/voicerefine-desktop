@@ -71,15 +71,18 @@ describe('composeShortcutTransformPrompt', () => {
 })
 
 describe('transform prompt presets', () => {
-  it('keeps clarity focused on prose only', () => {
+  it('keeps smart format focused on faithful formatting', () => {
     const prompt = defaultPromptForPreset('clarity')
-    expect(prompt).toContain('Output prose only.')
-    expect(prompt).toContain('Do not add bullets, headings, sections, numbered lists, or labels.')
+    expect(prompt).toContain('Preserve the speaker\'s vocabulary, meaning, order, and tone.')
+    expect(prompt).toContain('Format clear list intent as bullets or numbered steps')
+    expect(prompt).toContain('Put clear side thoughts in parentheses')
+    expect(prompt).toContain('Do not rewrite for style')
   })
 
-  it('lets structure choose paragraphs, bullets, or sections when helpful', () => {
+  it('lets polish and organize rewrite and structure when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('Use short headings, bullets, numbered steps, or paragraphs when helpful.')
-    expect(prompt).toContain('Do not force bullets if paragraphs are clearer.')
+    expect(prompt).toContain('Improve wording, grammar, sentence flow, and readability.')
+    expect(prompt).toContain('Group related ideas together')
+    expect(prompt).toContain('Use paragraphs, bullets, numbered steps, or short headings')
   })
 })

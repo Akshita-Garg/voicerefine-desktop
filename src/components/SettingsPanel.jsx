@@ -263,7 +263,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 />
                 <span className="flex flex-col gap-0.5">
                   <span className="text-sm text-[#3A2F2A] font-medium">Use built-in prompts</span>
-                  <span className="text-xs text-[#8A766E] leading-snug">Recommended. VoiceRefine uses tuned prompts for clarity and structure.</span>
+                  <span className="text-xs text-[#8A766E] leading-snug">Recommended. VoiceRefine uses tuned prompts for smart formatting and organized rewriting.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
