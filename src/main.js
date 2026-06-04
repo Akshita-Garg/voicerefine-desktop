@@ -24,8 +24,9 @@ let selectedNativeAsrModel = 'parakeet-q4';
 let refinementSettings = {
   provider: 'builtin',
   apiKey: '',
-  intent: 'clean',
-  mode: 'light',
+  refinementMode: 'clean',
+  transformPreset: 'rewrite',
+  transformPrompt: '',
 };
 
 async function sendPasteShortcut() {
@@ -302,8 +303,9 @@ app.whenReady().then(() => {
     refinementSettings = {
       provider: settings?.provider ?? refinementSettings.provider,
       apiKey: settings?.apiKey ?? refinementSettings.apiKey,
-      intent: settings?.intent ?? refinementSettings.intent,
-      mode: settings?.mode ?? refinementSettings.mode,
+      refinementMode: settings?.refinementMode ?? refinementSettings.refinementMode,
+      transformPreset: settings?.transformPreset ?? refinementSettings.transformPreset,
+      transformPrompt: settings?.transformPrompt ?? refinementSettings.transformPrompt,
     };
     return refinementSettings;
   });

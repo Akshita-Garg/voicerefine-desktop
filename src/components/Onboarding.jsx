@@ -1,31 +1,42 @@
 import { useState, useEffect, useRef } from 'react'
-import { Eraser, Mail, Mic2 } from 'lucide-react'
+import { Eraser, Sparkles } from 'lucide-react'
 import { validateKey } from '../services/llm'
+import { DEFAULT_TRANSFORM_PRESET, defaultPromptForPreset } from '../utils/composePrompt'
+import { REFINEMENT_MODE_CLEAN, REFINEMENT_MODE_TRANSFORM } from '../utils/refinementSettings'
 
-const INTENTS = [
-  { value: 'clean',   Icon: Eraser, label: 'Clean',   description: "Minimal edit. Fix speech artifacts while preserving your vocabulary, phrasing, order, and tone." },
-  { value: 'compose', Icon: Mail,   label: 'Compose', description: "Ready-to-send writing. Smooth wording and structure while keeping your meaning and tone." },
-  { value: 'prepare', Icon: Mic2,   label: 'Prepare', description: "Spoken delivery. Improve cadence, confidence, and flow for something you'll say aloud." },
+const REFINEMENT_CHOICES = [
+  {
+    value: REFINEMENT_MODE_CLEAN,
+    Icon: Eraser,
+    label: 'Clean',
+    description: 'Fast local cleanup with no LLM. Best for dictation and overlay use.',
+  },
+  {
+    value: REFINEMENT_MODE_TRANSFORM,
+    Icon: Sparkles,
+    label: 'Transform',
+    description: 'Use a prompt and a model to rewrite the transcript into another form.',
+  },
 ]
 
 const PROVIDERS = [
-  { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Refinement runs locally on your device using a bundled model. No setup, no internet required.' },
-  { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true,  description: 'Free API key from Google AI Studio (aistudio.google.com).' },
-  { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true,  description: 'Requires an OpenAI API key (paid).' },
-  { value: 'none',    label: 'Skip refinement (transcripts only)', needsKey: false, description: 'No setup needed. You get transcripts but not refined output. You can switch to a provider later in Settings.' },
+  { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Transform runs locally on your device using a bundled model. No internet required.' },
+  { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true, description: 'Free API key from Google AI Studio.' },
+  { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true, description: 'Requires an OpenAI API key.' },
+  { value: 'none',    label: 'Skip transform for now', needsKey: false, description: 'You can stay with clean-only mode and enable transform later.' },
 ]
 
-function Step1({ intent, onSelect, onContinue }) {
+function Step1({ refinementMode, onSelect, onContinue }) {
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-xl">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">What will you mostly use this for?</h1>
-        <p className="text-sm text-[#8A766E]">This shapes how VoiceRefine transforms your recordings.</p>
+        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">How do you want VoiceRefine to behave?</h1>
+        <p className="text-sm text-[#8A766E]">Choose between instant cleanup and prompt-driven transforms.</p>
       </div>
 
       <div className="flex flex-col gap-3 w-full">
-        {INTENTS.map(({ value, Icon, label, description }) => {
-          const selected = intent === value
+        {REFINEMENT_CHOICES.map(({ value, Icon, label, description }) => {
+          const selected = refinementMode === value
           return (
             <button
               key={value}
@@ -45,11 +56,9 @@ function Step1({ intent, onSelect, onContinue }) {
         })}
       </div>
 
-      <p className="text-xs text-[#8A766E]">You can change this anytime from the main screen or Settings.</p>
-
       <button
         onClick={onContinue}
-        disabled={!intent}
+        disabled={!refinementMode}
         className="px-8 py-2.5 rounded-xl text-sm font-medium bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Continue
@@ -59,11 +68,11 @@ function Step1({ intent, onSelect, onContinue }) {
 }
 
 function Step2({ onComplete }) {
-  const [provider, setProvider]   = useState('builtin')
-  const [apiKey, setApiKey]       = useState('')
-  const [status, setStatus]       = useState('idle') // 'idle' | 'checking' | 'valid' | 'rate_limited' | 'invalid'
+  const [provider, setProvider] = useState('builtin')
+  const [apiKey, setApiKey] = useState('')
+  const [status, setStatus] = useState('idle')
   const [statusMsg, setStatusMsg] = useState('')
-  const [override, setOverride]   = useState(false)
+  const [override, setOverride] = useState(false)
 
   const handleProviderChange = (val) => {
     setProvider(val)
@@ -90,14 +99,17 @@ function Step2({ onComplete }) {
   }
 
   const needsKey = PROVIDERS.find(p => p.value === provider)?.needsKey ?? false
-
   const canContinue =
     provider === 'none' ||
     provider === 'builtin' ||
-    (provider && (status === 'valid' || status === 'rate_limited' || override))
+    status === 'valid' ||
+    status === 'rate_limited' ||
+    override
 
   const handleComplete = () => {
     localStorage.setItem('vr_provider', provider)
+    localStorage.setItem('vr_transform_preset', DEFAULT_TRANSFORM_PRESET)
+    localStorage.setItem('vr_transform_prompt', defaultPromptForPreset(DEFAULT_TRANSFORM_PRESET))
     if (needsKey && apiKey) localStorage.setItem('vr_api_key', apiKey)
     else localStorage.removeItem('vr_api_key')
     onComplete()
@@ -106,8 +118,8 @@ function Step2({ onComplete }) {
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-xl">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">How do you want to power refinements?</h1>
-        <p className="text-sm text-[#8A766E]">Your key is stored only on this device, never on our servers.</p>
+        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">How do you want to power transforms?</h1>
+        <p className="text-sm text-[#8A766E]">Your key stays on this device. Clean mode never needs a model provider.</p>
       </div>
 
       <div className="flex flex-col gap-2 w-full">
@@ -124,16 +136,13 @@ function Step2({ onComplete }) {
               }`}
               style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             >
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-sm font-semibold text-[#3A2F2A]">{label}</span>
-              </div>
-              <p className="text-xs text-[#8A766E] leading-snug">{description}</p>
+              <span className="text-sm font-semibold text-[#3A2F2A]">{label}</span>
+              <p className="text-xs text-[#8A766E] leading-snug mt-0.5">{description}</p>
             </button>
           )
         })}
       </div>
 
-      {/* Key input for Gemini / OpenAI */}
       {provider && needsKey && (
         <div className="w-full flex flex-col gap-2">
           <div className="flex gap-2">
@@ -151,13 +160,29 @@ function Step2({ onComplete }) {
               className="px-3 py-2 rounded-lg text-sm text-[#6B5B52] hover:text-[#3A2F2A] border border-[rgba(58,47,42,0.08)] disabled:opacity-40 transition-colors"
               style={{ background: '#DFC8BE' }}
             >
-              {status === 'checking' ? '…' : 'Validate'}
+              {status === 'checking' ? '...' : 'Validate'}
             </button>
           </div>
-          <ValidationFeedback status={status} message={statusMsg} override={override} onOverride={setOverride} />
+
+          {status === 'checking' && <p className="text-sm text-[#8A766E]">Checking...</p>}
+          {status === 'valid' && <p className="text-sm text-[#6FA287]">Connected</p>}
+          {status === 'rate_limited' && <p className="text-sm text-amber-700">Valid key (rate limited, quota resets soon)</p>}
+          {status === 'invalid' && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-red-700">{statusMsg}</p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={override}
+                  onChange={e => setOverride(e.target.checked)}
+                  className="accent-[#7FAF8F]"
+                />
+                <span className="text-xs text-[#8A766E]">Continue anyway, I know what I&apos;m doing</span>
+              </label>
+            </div>
+          )}
         </div>
       )}
-
 
       <button
         onClick={handleComplete}
@@ -170,45 +195,30 @@ function Step2({ onComplete }) {
   )
 }
 
-function ValidationFeedback({ status, message, override, onOverride }) {
-  if (status === 'idle') return null
-  return (
-    <div className="text-sm">
-      {status === 'checking' && <p className="text-[#8A766E]">Checking…</p>}
-      {status === 'valid' && <p className="text-[#6FA287]">✓ Connected</p>}
-      {status === 'rate_limited' && <p className="text-amber-700">✓ Valid key (rate limited, quota resets soon)</p>}
-      {status === 'invalid' && (
-        <div className="flex flex-col gap-2">
-          <p className="text-red-700">✗ {message}</p>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={override}
-              onChange={e => onOverride(e.target.checked)}
-              className="accent-[#7FAF8F]"
-            />
-            <span className="text-xs text-[#8A766E]">Continue anyway, I know what I'm doing</span>
-          </label>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export function Onboarding({ onComplete }) {
-  const [step, setStep]                         = useState(1)
-  const [intent, setIntent]                     = useState(null)
-  const [fading, setFading]                     = useState(false)
-  const fadeTimerRef                            = useRef(null)
+  const [step, setStep] = useState(1)
+  const [refinementMode, setRefinementMode] = useState(null)
+  const [fading, setFading] = useState(false)
+  const fadeTimerRef = useRef(null)
 
   useEffect(() => () => clearTimeout(fadeTimerRef.current), [])
 
   const handleStep1Continue = () => {
-    localStorage.setItem('vr_intent', intent)
+    localStorage.setItem('vr_refinement_mode', refinementMode)
+    if (refinementMode === REFINEMENT_MODE_CLEAN) {
+      localStorage.setItem('vr_provider', 'builtin')
+      localStorage.setItem('vr_transform_preset', DEFAULT_TRANSFORM_PRESET)
+      localStorage.setItem('vr_transform_prompt', defaultPromptForPreset(DEFAULT_TRANSFORM_PRESET))
+      localStorage.setItem('vr_onboarding_done', 'true')
+      setFading(true)
+      fadeTimerRef.current = setTimeout(onComplete, 500)
+      return
+    }
     setStep(2)
   }
 
   const handleStep2Complete = () => {
+    localStorage.setItem('vr_refinement_mode', REFINEMENT_MODE_TRANSFORM)
     localStorage.setItem('vr_onboarding_done', 'true')
     setFading(true)
     fadeTimerRef.current = setTimeout(onComplete, 500)
@@ -219,13 +229,12 @@ export function Onboarding({ onComplete }) {
       className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 transition-opacity duration-500 ${fading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       style={{ background: 'linear-gradient(180deg, #EADBD2 0%, #E6D4C2 100%)' }}
     >
-      {/* Header */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
         <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">VoiceRefine</h1>
-        <span className="text-xs text-[#8A766E]">Step {step} of 2</span>
+        <span className="text-xs text-[#8A766E]">Step {step} of {refinementMode === REFINEMENT_MODE_CLEAN ? 1 : 2}</span>
       </div>
 
-      {step === 1 && <Step1 intent={intent} onSelect={setIntent} onContinue={handleStep1Continue} />}
+      {step === 1 && <Step1 refinementMode={refinementMode} onSelect={setRefinementMode} onContinue={handleStep1Continue} />}
       {step === 2 && <Step2 onComplete={handleStep2Complete} />}
     </div>
   )

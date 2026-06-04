@@ -1,38 +1,39 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Wand2, List, FileText, Eraser, Mail, Mic2, Copy, Check } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Eraser, Sparkles, Copy, Check, Settings2 } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
 import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
-import { composePrompt } from './utils/composePrompt'
-import { refine, warmBuiltinRefinement } from './services/llm'
+import { composeTransformPrompt, DEFAULT_TRANSFORM_PRESET, TRANSFORM_PRESETS, defaultPromptForPreset, normalizeTransformPreset } from './utils/composePrompt'
+import { cleanTranscriptText, refine, warmBuiltinRefinement } from './services/llm'
+import {
+  REFINEMENT_MODE_CLEAN,
+  REFINEMENT_MODE_TRANSFORM,
+  normalizeRefinementMode,
+  readRefinementMode,
+  readTransformPreset,
+  readTransformPrompt,
+} from './utils/refinementSettings'
 
-const MODES = [
-  { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean prose. Preserves the flow of what you said.' },
-  { value: 'bullets',  Icon: List,     label: 'Bullets',  description: 'Key ideas as a bulleted list.' },
-  { value: 'document', Icon: FileText, label: 'Document', description: 'Restructured into sections with brief headers.' },
+const REFINEMENT_MODES = [
+  {
+    value: REFINEMENT_MODE_CLEAN,
+    Icon: Eraser,
+    label: 'Clean',
+    description: 'Fast cleanup with no LLM. Keeps your wording and removes speech artifacts.',
+  },
+  {
+    value: REFINEMENT_MODE_TRANSFORM,
+    Icon: Sparkles,
+    label: 'Transform',
+    description: 'Use a prompt to reshape the transcript into another form.',
+  },
 ]
-
-const INTENT_LABELS = {
-  clean:   { Icon: Eraser, label: 'Clean',   description: "Minimal edit. Fix speech artifacts while preserving your vocabulary, phrasing, order, and tone." },
-  compose: { Icon: Mail,   label: 'Compose', description: "Ready-to-send writing. Smooth wording and structure while keeping your meaning and tone." },
-  prepare: { Icon: Mic2,   label: 'Prepare', description: "Spoken delivery. Improve cadence, confidence, and flow for something you'll say aloud." },
-}
-
-function readIntent() {
-  const stored = localStorage.getItem('vr_intent')
-  return stored && stored in INTENT_LABELS ? stored : 'clean'
-}
 
 function readProvider() {
   const stored = localStorage.getItem('vr_provider') ?? 'builtin'
   return stored === 'browser' || stored === 'ollama' ? 'builtin' : stored
-}
-
-function readMode() {
-  const stored = localStorage.getItem('vr_mode')
-  return MODES.some(mode => mode.value === stored) ? stored : 'light'
 }
 
 function readApiKey() {
@@ -47,8 +48,9 @@ function syncRefinementSettings() {
   return window.voicerefine?.setRefinementSettings?.({
     provider: readProvider(),
     apiKey: readApiKey(),
-    intent: readIntent(),
-    mode: readMode(),
+    refinementMode: readRefinementMode(),
+    transformPreset: readTransformPreset(),
+    transformPrompt: readTransformPrompt(),
   })
 }
 
@@ -59,27 +61,29 @@ function warmSelectedRefinementProvider() {
   })
 }
 
+function presetLabel(preset) {
+  return TRANSFORM_PRESETS[normalizeTransformPreset(preset)]?.label ?? TRANSFORM_PRESETS[DEFAULT_TRANSFORM_PRESET].label
+}
+
 function App() {
   const [onboardingDone, setOnboardingDone] = useState(readOnboardingDone)
-  const [rawTranscript, setRawTranscript]     = useState('')
-  const [isTranscribing, setIsTranscribing]   = useState(false)
-  const [transcribeError, setTranscribeError] = useState(false)
-
-  const [mode, setMode]               = useState(readMode)
-  const [refinedOutput, setRefinedOutput] = useState('')
-  const [isRefining, setIsRefining]   = useState(false)
+  const [rawTranscript, setRawTranscript] = useState('')
+  const [outputText, setOutputText] = useState('')
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingRefinementModel, setIsLoadingRefinementModel] = useState(false)
-  const [refineError, setRefineError] = useState(null)
-
+  const [transcribeError, setTranscribeError] = useState(false)
+  const [processError, setProcessError] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
-
-  const [rawCopied, setRawCopied]         = useState(false)
-  const [refinedCopied, setRefinedCopied] = useState(false)
-
-  const [provider, setProvider]       = useState(readProvider)
+  const [rawCopied, setRawCopied] = useState(false)
+  const [outputCopied, setOutputCopied] = useState(false)
+  const [provider, setProvider] = useState(readProvider)
   const [tipDismissed, setTipDismissed] = useState(false)
-
-  const transcribeModelReady = true
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [refinementMode, setRefinementMode] = useState(readRefinementMode)
+  const [transformPreset, setTransformPreset] = useState(readTransformPreset)
+  const [transformPrompt, setTransformPrompt] = useState(readTransformPrompt)
+  const transformPromptRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -106,26 +110,27 @@ function App() {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      // clipboard unavailable — checkmark intentionally does not flash
+      // clipboard unavailable
     }
   }
 
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [intent, setIntent]             = useState(readIntent)
-  const [intentOpen, setIntentOpen]     = useState(false)
-  const intentRef                       = useRef(null)
+  const saveRefinementState = ({ nextMode = refinementMode, nextPreset = transformPreset, nextPrompt = transformPrompt } = {}) => {
+    localStorage.setItem('vr_refinement_mode', nextMode)
+    localStorage.setItem('vr_transform_preset', nextPreset)
+    localStorage.setItem('vr_transform_prompt', nextPrompt)
+    setRefinementMode(nextMode)
+    setTransformPreset(nextPreset)
+    setTransformPrompt(nextPrompt)
+    void syncRefinementSettings()
+  }
 
-  const handleAudioReady = useCallback(async (blob) => {
+  const handleAudioReady = async (blob) => {
     setTranscribeError(false)
     setIsTranscribing(true)
     const startedAt = performance.now()
     try {
-      console.log('[pipeline] main transcription started', {
-        bytes: blob.size,
-        mimeType: blob.type,
-      })
       const text = await transcribe(blob)
-      setRawTranscript(prev => prev ? prev + '\n\n' + text : text)
+      setRawTranscript(prev => prev ? `${prev}\n\n${text}` : text)
       console.log('[pipeline] main transcription complete', {
         totalMs: Math.round(performance.now() - startedAt),
         chars: text.length,
@@ -136,61 +141,76 @@ function App() {
     } finally {
       setIsTranscribing(false)
     }
-  }, [])
+  }
 
-  const handleRefine = useCallback(async () => {
-    if (!rawTranscript.trim()) return
-    setRefineError(null)
-    setIsRefining(true)
+  const handleProcess = async () => {
+    const transcript = rawTranscript.trim()
+    if (!transcript) return
+
+    setProcessError(null)
+    setIsProcessing(true)
     setIsLoadingRefinementModel(false)
-    const startedAt = performance.now()
     const loadingTimer = setTimeout(() => {
-      setIsLoadingRefinementModel(true)
+      if (refinementMode === REFINEMENT_MODE_TRANSFORM) setIsLoadingRefinementModel(true)
     }, 2000)
+
     try {
-      const currentIntent = localStorage.getItem('vr_intent') ?? 'clean'
-      const { system, user } = composePrompt({ intent: currentIntent, mode, transcript: rawTranscript })
-      const output = await refine({ system, user, mode, intent: currentIntent })
-      setRefinedOutput(output)
-      console.log('[pipeline] main refinement complete', {
-        intent: currentIntent,
-        mode,
-        totalMs: Math.round(performance.now() - startedAt),
-        inputChars: rawTranscript.length,
-        outputChars: output.length,
-      })
+      let nextOutput
+
+      if (refinementMode === REFINEMENT_MODE_CLEAN) {
+        nextOutput = cleanTranscriptText(transcript)
+      } else {
+        const { system, user } = composeTransformPrompt({
+          prompt: transformPrompt,
+          transcript,
+        })
+        nextOutput = await refine({
+          system,
+          user,
+          preset: transformPreset,
+        })
+      }
+
+      setOutputText(nextOutput)
     } catch (err) {
-      console.error('[App] Refinement failed:', err)
-      setRefineError(err.message)
+      console.error('[App] Processing failed:', err)
+      setProcessError(err.message)
     } finally {
       clearTimeout(loadingTimer)
-      setIsRefining(false)
+      setIsProcessing(false)
       setIsLoadingRefinementModel(false)
     }
-  }, [rawTranscript, mode])
+  }
 
   const handleSettingsSaved = () => {
-    setIntent(readIntent())
     setProvider(readProvider())
     void syncRefinementSettings()
     warmSelectedRefinementProvider()
   }
 
-  const handleIntentChange = (val) => {
-    localStorage.setItem('vr_intent', val)
-    setIntent(val)
+  const handleRefinementModeChange = (value) => {
+    saveRefinementState({ nextMode: normalizeRefinementMode(value) })
+  }
+
+  const handlePresetChange = (preset) => {
+    const nextPreset = normalizeTransformPreset(preset)
+    saveRefinementState({
+      nextPreset,
+      nextPrompt: defaultPromptForPreset(nextPreset),
+    })
+  }
+
+  const handlePromptChange = (value) => {
+    localStorage.setItem('vr_transform_prompt', value)
+    setTransformPrompt(value)
     void syncRefinementSettings()
   }
 
-  const handleModeChange = (val) => {
-    localStorage.setItem('vr_mode', val)
-    setMode(val)
-    void syncRefinementSettings()
-  }
+  const processingLabel = refinementMode === REFINEMENT_MODE_CLEAN
+    ? (isProcessing ? 'Cleaning...' : 'Clean Transcript')
+    : (isLoadingRefinementModel ? 'Loading transform model...' : isProcessing ? 'Transforming...' : `Transform as ${presetLabel(transformPreset)}`)
 
-  const currentMode = MODES.find(m => m.value === mode)
-  const CurrentModeIcon = currentMode?.Icon
-  const refinementEnabled = provider !== 'none'
+  const transformEnabled = provider !== 'none'
 
   return (
     <div
@@ -206,23 +226,18 @@ function App() {
           aria-label="Settings"
           className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A766E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" className="hover:stroke-[#5C4B44] transition-colors">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          <Settings2 size={18} strokeWidth={1.75} color="#8A766E" />
         </button>
       </header>
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
-
-        {/* Tip banner */}
         {!tipDismissed && (
           <div
             className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-3"
             style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[#4A7A5E]">Tip: You can change your transcription model or refinement provider any time in Settings.</span>
+              <span className="text-sm text-[#4A7A5E]">Tip: Clean is the fast local path. Transform uses a prompt and can use a model provider.</span>
               <button
                 onClick={() => setTipDismissed(true)}
                 className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
@@ -233,98 +248,64 @@ function App() {
           </div>
         )}
 
-        {/* Mic + Refine */}
         <div className="flex flex-col items-center gap-3">
-          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} disabled={!transcribeModelReady} />
+          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} />
           {transcribeError && (
             <p className="text-sm text-red-700">
               Transcription failed. Check the app console for details.
             </p>
           )}
-          {refinementEnabled ? (
-            <button
-              onClick={handleRefine}
-              disabled={!rawTranscript.trim() || isRefining || isRecording || isTranscribing}
-              className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-medium transition-colors duration-150
-                bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5]
-                disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {CurrentModeIcon && <CurrentModeIcon size={14} strokeWidth={1.75} color="#F4F7F5" />}
-              {isLoadingRefinementModel ? 'Loading refinement model...' : isRefining ? 'Refining...' : `Refine as ${currentMode?.label}`}
-            </button>
-          ) : (
+          <button
+            onClick={handleProcess}
+            disabled={!rawTranscript.trim() || isProcessing || isRecording || isTranscribing || (refinementMode === REFINEMENT_MODE_TRANSFORM && !transformEnabled)}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-medium transition-colors duration-150
+              bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5]
+              disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {refinementMode === REFINEMENT_MODE_CLEAN
+              ? <Eraser size={14} strokeWidth={1.75} color="#F4F7F5" />
+              : <Sparkles size={14} strokeWidth={1.75} color="#F4F7F5" />}
+            {processingLabel}
+          </button>
+          {refinementMode === REFINEMENT_MODE_TRANSFORM && !transformEnabled && (
             <p className="text-sm text-[#8A766E] text-center">
-              Refinement disabled.{' '}
+              Transform is disabled.{' '}
               <button
                 onClick={() => setSettingsOpen(true)}
                 className="underline hover:text-[#3A2F2A] transition-colors"
               >
-                Switch to a provider in Settings
-              </button>{' '}
-              to enable refinement.
+                Choose a provider in Settings
+              </button>
+              .
             </p>
           )}
         </div>
 
-        {/* Intent | Cards | Mode */}
         <div className="flex gap-5 w-full max-w-5xl items-start">
-
-          {/* Intent */}
-          <div ref={intentRef} className="w-44 flex-shrink-0 pt-1">
-            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Intent</p>
-            <div className="relative">
-              <button
-                onClick={() => setIntentOpen(o => !o)}
-                className="flex items-center gap-1.5 text-[#3A2F2A] text-sm hover:text-[#6B5B52] transition-colors"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                  fill="none" stroke="#8A766E" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round"
-                  opacity="0.9"
-                  className={`flex-shrink-0 transition-transform duration-150 ${intentOpen ? 'rotate-180' : ''}`}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-                {(() => {
-                  const { Icon: IntentIcon, label } = INTENT_LABELS[intent]
-                  return (
-                    <span className="flex items-center gap-1.5 truncate font-medium text-[#3A2F2A]">
-                      <IntentIcon size={13} strokeWidth={1.75} color="#6FA287" />
-                      {label}
-                    </span>
-                  )
-                })()}
-              </button>
-
-              {intentOpen && (
-                <div className="absolute top-full mt-1 left-0 z-20 bg-[#EDE6DA] border border-[rgba(58,47,42,0.08)] rounded-xl shadow-[0_4px_16px_rgba(58,47,42,0.1)] w-80 py-1 overflow-hidden">
-                  {Object.entries(INTENT_LABELS).map(([val, { Icon: ItemIcon, label, description }]) => (
+          <div className="w-52 flex-shrink-0 pt-1">
+            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Output</p>
+            <div className="flex flex-col gap-2">
+              {REFINEMENT_MODES.map(({ value, Icon, label, description }) => {
+                const active = refinementMode === value
+                return (
+                  <Tooltip key={value} text={description} align="right">
                     <button
-                      key={val}
-                      onClick={() => { handleIntentChange(val); setIntentOpen(false) }}
-                      className={`w-full text-left px-3 py-2.5 flex flex-col gap-0.5 transition-colors
-                        border-l-2 ${intent === val
-                          ? 'border-[#7FAF8F] bg-[rgba(127,175,143,0.08)] text-[#3A2F2A]'
-                          : 'border-transparent text-[#6B5B52] hover:bg-[rgba(58,47,42,0.04)] hover:text-[#3A2F2A]'}`}
+                      onClick={() => handleRefinementModeChange(value)}
+                      className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
+                        active
+                          ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                          : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                      }`}
                     >
-                      <span className="flex items-center gap-2 text-sm font-medium">
-                        <ItemIcon
-                          size={14}
-                          strokeWidth={1.75}
-                          color={intent === val ? '#6FA287' : '#5C4B44'}
-                        />
-                        {label}
-                      </span>
-                      <span className="text-xs text-[#8A766E] leading-snug pl-[22px]">{description}</span>
+                      <Icon size={14} strokeWidth={1.75} color={active ? '#6FA287' : '#5C4B44'} />
+                      {label}
                     </button>
-                  ))}
-                </div>
-              )}
+                  </Tooltip>
+                )
+              })}
             </div>
           </div>
 
-          {/* Cards */}
           <div className="flex-1 grid grid-cols-2 gap-6 min-w-0">
             <div
               className="rounded-xl p-5"
@@ -332,7 +313,7 @@ function App() {
             >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em]">
-                  Raw Transcript
+                  Transcript
                 </h2>
                 {rawTranscript && (
                   <div className="flex items-center gap-2">
@@ -356,75 +337,79 @@ function App() {
                 value={rawTranscript}
                 onChange={e => setRawTranscript(e.target.value)}
                 className="w-full h-52 bg-transparent text-[#3A2F2A] text-sm resize-none outline-none placeholder-[#6B5B52]"
-                placeholder="Record something. VoiceRefine will transcribe it here. You can edit the text before refining."
+                placeholder="Record something. VoiceRefine will transcribe it here."
               />
             </div>
 
             <div
-              className={`rounded-xl p-5 transition-opacity duration-200 ${!refinementEnabled ? 'opacity-40 pointer-events-none select-none' : ''}`}
+              className="rounded-xl p-5"
               style={{ background: 'rgba(213, 120, 105, 0.12)', border: '1px solid rgba(213, 120, 105, 0.4)', boxShadow: '0 1px 3px rgba(58,47,42,0.06)' }}
             >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em]">
-                  Refined Output
+                  Output
                 </h2>
-                {refinedOutput && refinementEnabled && (
+                {outputText && (
                   <button
-                    onClick={() => copyText(refinedOutput, setRefinedCopied)}
+                    onClick={() => copyText(outputText, setOutputCopied)}
                     className="text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     title="Copy"
                   >
-                    {refinedCopied ? <Check size={13} /> : <Copy size={13} />}
+                    {outputCopied ? <Check size={13} /> : <Copy size={13} />}
                   </button>
                 )}
               </div>
               <div className="h-52 overflow-y-auto">
-                {!refinementEnabled ? (
-                  <p className="text-[#6B5B52] text-sm">No refinement provider selected.</p>
-                ) : refineError ? (
-                  <p className="text-red-700 text-sm">{refineError}</p>
-                ) : refinedOutput ? (
-                  <p className="text-[#3A2F2A] text-sm whitespace-pre-wrap">{refinedOutput}</p>
+                {processError ? (
+                  <p className="text-red-700 text-sm">{processError}</p>
+                ) : outputText ? (
+                  <p className="text-[#3A2F2A] text-sm whitespace-pre-wrap">{outputText}</p>
                 ) : (
                   <p className="text-[#6B5B52] text-sm">
-                    {isLoadingRefinementModel ? 'Loading refinement model...' : isRefining ? 'Refining...' : 'Refined text will appear here.'}
+                    {isLoadingRefinementModel ? 'Loading transform model...' : isProcessing ? 'Processing...' : 'Your cleaned or transformed text will appear here.'}
                   </p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Mode — hidden when refinement is disabled */}
-          {refinementEnabled && (
-            <div className="w-36 flex-shrink-0 pt-1">
-              <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Mode</p>
-              <div className="flex flex-col gap-2">
-                {MODES.map(({ value, Icon: ModeIcon, label, description }) => {
-                  const active = mode === value
-                  return (
-                    <Tooltip key={value} text={description} align="right">
-                      <button
-                        onClick={() => handleModeChange(value)}
-                        className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
-                          active
-                            ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                            : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                        }`}
-                      >
-                        <ModeIcon
-                          size={14}
-                          strokeWidth={1.75}
-                          color={active ? '#6FA287' : '#5C4B44'}
-                        />
-                        {label}
-                      </button>
-                    </Tooltip>
-                  )
-                })}
+          <div className={`w-72 flex-shrink-0 pt-1 ${refinementMode === REFINEMENT_MODE_TRANSFORM ? '' : 'opacity-50'}`}>
+            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Transform</p>
+            {refinementMode === REFINEMENT_MODE_TRANSFORM ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
+                  {Object.entries(TRANSFORM_PRESETS).map(([value, preset]) => {
+                    const active = transformPreset === value
+                    return (
+                      <Tooltip key={value} text={preset.description} align="left">
+                        <button
+                          onClick={() => handlePresetChange(value)}
+                          className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
+                            active
+                              ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                              : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+                <textarea
+                  ref={transformPromptRef}
+                  value={transformPrompt}
+                  onChange={e => handlePromptChange(e.target.value)}
+                  className="w-full h-44 rounded-xl border border-[rgba(58,47,42,0.08)] bg-[rgba(255,255,255,0.28)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
+                  placeholder="Edit the transform prompt here."
+                />
               </div>
-            </div>
-          )}
-
+            ) : (
+              <p className="text-sm text-[#8A766E]">
+                Clean mode skips the LLM and only removes speech artifacts while preserving your wording.
+              </p>
+            )}
+          </div>
         </div>
       </main>
 
@@ -435,7 +420,16 @@ function App() {
       />
 
       {!onboardingDone && (
-        <Onboarding onComplete={() => { setOnboardingDone(true); setIntent(readIntent()); setProvider(readProvider()); void syncRefinementSettings() }} />
+        <Onboarding
+          onComplete={() => {
+            setOnboardingDone(true)
+            setProvider(readProvider())
+            setRefinementMode(readRefinementMode())
+            setTransformPreset(readTransformPreset())
+            setTransformPrompt(readTransformPrompt())
+            void syncRefinementSettings()
+          }}
+        />
       )}
     </div>
   )

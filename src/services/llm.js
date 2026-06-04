@@ -27,11 +27,12 @@ function getProviderConfig() {
   return readProviderConfig(globalThis.localStorage)
 }
 
-function samplingFor({ intent, mode }) {
-  if (intent === 'clean') {
-    return { temperature: 0.25, topP: 0.85, topK: 32 }
-  }
-  if (mode === 'bullets' || mode === 'document') {
+export function cleanTranscriptText(text) {
+  return cleanSpeechArtifacts(cleanRefinementOutput(text))
+}
+
+function transformSamplingFor({ preset }) {
+  if (preset === 'bullets') {
     return { temperature: 0.7, topP: 0.9, topK: 48 }
   }
   return { temperature: 0.9, topP: 0.95, topK: 64 }
@@ -44,7 +45,7 @@ function samplingFor({ intent, mode }) {
  * Throws with a specific, user-readable message for auth failures, rate limits,
  * and network errors, not a generic "something went wrong".
  */
-export async function refine({ system, user, mode, intent, providerConfig, maxTokens }) {
+export async function refine({ system, user, preset, providerConfig, maxTokens }) {
   const { provider, apiKey } = providerConfig ?? getProviderConfig()
   if (provider === 'none' || provider === 'browser') return null
 
@@ -55,9 +56,9 @@ export async function refine({ system, user, mode, intent, providerConfig, maxTo
     }
     const output = cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, {
       maxTokens,
-      ...samplingFor({ intent, mode }),
+      ...transformSamplingFor({ preset }),
     }))
-    return intent === 'clean' ? cleanSpeechArtifacts(output) : output
+    return output
   }
 
   const config = PROVIDERS[provider]

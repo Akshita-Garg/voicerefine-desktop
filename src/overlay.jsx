@@ -2,9 +2,10 @@ import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Check, LoaderCircle, Mic, Square } from 'lucide-react'
 import { transcribe } from './services/asr'
-import { refine } from './services/llm'
-import { composeShortcutPrompt } from './utils/composePrompt'
+import { cleanTranscriptText, refine } from './services/llm'
+import { composeShortcutTransformPrompt } from './utils/composePrompt'
 import { calculateShortcutMaxTokens } from './utils/refinementBudget'
+import { REFINEMENT_MODE_CLEAN, REFINEMENT_MODE_TRANSFORM } from './utils/refinementSettings'
 import './index.css'
 
 const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
@@ -17,40 +18,43 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`
 }
 
-const VALID_INTENTS = new Set(['clean', 'compose', 'prepare'])
-const VALID_MODES = new Set(['light', 'bullets', 'document'])
-
 async function readOverlayRefinementSettings() {
   const settings = await window.voicerefine?.getRefinementSettings?.()
-  const storedIntent = settings?.intent ?? localStorage.getItem('vr_intent')
-  const storedMode = settings?.mode ?? localStorage.getItem('vr_mode')
   return {
     provider: settings?.provider ?? 'builtin',
     apiKey: settings?.apiKey ?? '',
-    intent: VALID_INTENTS.has(storedIntent) ? storedIntent : 'clean',
-    mode: VALID_MODES.has(storedMode) ? storedMode : 'light',
+    refinementMode: settings?.refinementMode === REFINEMENT_MODE_TRANSFORM ? REFINEMENT_MODE_TRANSFORM : REFINEMENT_MODE_CLEAN,
+    transformPreset: settings?.transformPreset ?? 'rewrite',
+    transformPrompt: settings?.transformPrompt ?? '',
   }
-}
-
-function readFallbackIntent() {
-  const stored = localStorage.getItem('vr_intent')
-  return VALID_INTENTS.has(stored) ? stored : 'clean'
-}
-
-function readFallbackMode() {
-  const stored = localStorage.getItem('vr_mode')
-  return VALID_MODES.has(stored) ? stored : 'light'
 }
 
 async function refineForPaste(transcript) {
   const settings = await readOverlayRefinementSettings()
-  const { intent, mode } = settings
-  const { system, user } = composeShortcutPrompt({ intent, mode, transcript })
-  const maxTokens = calculateShortcutMaxTokens(transcript, { intent })
-  const output = await refine({ system, user, mode, intent, providerConfig: settings, maxTokens })
+  if (settings.refinementMode !== REFINEMENT_MODE_TRANSFORM) {
+    return {
+      refinementMode: REFINEMENT_MODE_CLEAN,
+      transformPreset: null,
+      text: cleanTranscriptText(transcript),
+      refined: true,
+    }
+  }
+
+  const { system, user } = composeShortcutTransformPrompt({
+    prompt: settings.transformPrompt,
+    transcript,
+  })
+  const maxTokens = calculateShortcutMaxTokens(transcript, { intent: 'transform' })
+  const output = await refine({
+    system,
+    user,
+    preset: settings.transformPreset,
+    providerConfig: settings,
+    maxTokens,
+  })
   return {
-    intent,
-    mode,
+    refinementMode: REFINEMENT_MODE_TRANSFORM,
+    transformPreset: settings.transformPreset,
     text: output?.trim() ? output : transcript,
     refined: !!output?.trim(),
   }
@@ -110,7 +114,7 @@ function Overlay() {
           const startedAt = Date.now()
           const text = await transcribe(blob)
           let output = text
-          let refinement = { refined: false, intent: readFallbackIntent(), mode: readFallbackMode() }
+          let refinement = { refined: false, refinementMode: REFINEMENT_MODE_CLEAN, transformPreset: null }
 
           try {
             setStatus('refining')
@@ -128,8 +132,8 @@ function Overlay() {
             chars: output.length,
             rawChars: text.length,
             refined: refinement.refined,
-            intent: refinement.intent,
-            mode: refinement.mode,
+            refinementMode: refinement.refinementMode,
+            transformPreset: refinement.transformPreset,
             durationMs: Date.now() - startedAt,
           })
         } catch (err) {
@@ -198,7 +202,7 @@ function Overlay() {
             : 'Recording...'
   const subtitle =
     status === 'transcribing' ? 'Converting your recording locally'
-      : status === 'refining' ? 'Polishing with your selected mode'
+      : status === 'refining' ? 'Preparing your final text'
       : status === 'paste-error' ? 'Transcript copied. Paste manually with Ctrl+V.'
       : isComplete ? (transcript || 'No speech detected')
         : `Press ${HOTKEY_LABEL} again to stop recording`
