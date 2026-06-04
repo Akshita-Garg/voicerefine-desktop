@@ -3,7 +3,6 @@ import { Eraser, Sparkles, Copy, Check, Settings2 } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
-import { Tooltip } from './components/Tooltip'
 import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
 import { composeTransformPrompt, DEFAULT_TRANSFORM_PRESET, TRANSFORM_PRESETS, normalizeTransformPreset } from './utils/composePrompt'
 import { cleanTranscriptText, refine, warmBuiltinRefinement } from './services/llm'
@@ -281,43 +280,40 @@ function App() {
                 const active = refinementMode === value
                 return (
                   <div key={value} className="flex flex-col gap-2">
-                    <Tooltip text={description} align="left">
-                      <button
-                        onClick={() => handleRefinementModeChange(value)}
-                        className={`w-full px-4 py-3 rounded-[12px] text-sm text-left flex items-start gap-3 transition-colors duration-150 ${
-                          active
-                            ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A]'
-                            : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                        }`}
-                      >
-                        <Icon size={16} strokeWidth={1.75} color={active ? '#6FA287' : '#5C4B44'} className="mt-0.5 flex-shrink-0" />
-                        <span className="flex flex-col gap-0.5">
-                          <span className="font-medium">{label}</span>
-                          <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
-                        </span>
-                      </button>
-                    </Tooltip>
+                    <button
+                      onClick={() => handleRefinementModeChange(value)}
+                      className={`w-full px-4 py-3 rounded-[12px] text-sm text-left flex items-start gap-3 transition-colors duration-150 ${
+                        active
+                          ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A]'
+                          : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                      }`}
+                    >
+                      <Icon size={16} strokeWidth={1.75} color={active ? '#6FA287' : '#5C4B44'} className="mt-0.5 flex-shrink-0" />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-medium">{label}</span>
+                        <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
+                      </span>
+                    </button>
 
                     {value === REFINEMENT_MODE_TRANSFORM && active && (
                       <div className="pl-5 grid grid-cols-1 md:grid-cols-2 gap-2">
                         {Object.entries(TRANSFORM_PRESETS).map(([presetValue, preset]) => {
                           const presetActive = transformPreset === presetValue
                           return (
-                            <Tooltip key={presetValue} text={preset.description} align="left">
-                              <button
-                                onClick={() => handlePresetChange(presetValue)}
-                                className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
-                                  presetActive
-                                    ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                                    : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                                }`}
-                              >
-                                <span className="flex flex-col gap-0.5">
-                                  <span>{preset.label}</span>
-                                  <span className="text-xs text-[#8A766E] leading-snug font-normal">{preset.description}</span>
-                                </span>
-                              </button>
-                            </Tooltip>
+                            <button
+                              key={presetValue}
+                              onClick={() => handlePresetChange(presetValue)}
+                              className={`w-full px-3 py-2 rounded-[10px] text-sm text-left transition-colors duration-150 ${
+                                presetActive
+                                  ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                                  : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                              }`}
+                            >
+                              <span className="flex flex-col gap-0.5">
+                                <span>{preset.label}</span>
+                                <span className="text-xs text-[#8A766E] leading-snug font-normal">{preset.description}</span>
+                              </span>
+                            </button>
                           )
                         })}
                       </div>
