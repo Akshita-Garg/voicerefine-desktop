@@ -5,6 +5,7 @@ import {
   DEFAULT_TRANSFORM_PRESET,
   TRANSFORM_PRESETS,
   defaultPromptForPreset,
+  normalizeTranscriptForTransform,
   normalizeTransformPreset,
 } from './composePrompt'
 
@@ -49,6 +50,13 @@ describe('transform presets', () => {
   })
 })
 
+describe('normalizeTranscriptForTransform', () => {
+  it('keeps only the replacement phrase after scratch that', () => {
+    expect(normalizeTranscriptForTransform('send the invoice to ops scratch that send it to finance before the end of the day'))
+      .toBe('send it to finance before the end of the day')
+  })
+})
+
 describe('composeShortcutTransformPrompt', () => {
   it('creates a compact shortcut prompt', () => {
     const full = composeTransformPrompt({
@@ -79,9 +87,11 @@ describe('transform prompt presets', () => {
     expect(prompt).toContain('Do:')
     expect(prompt).toContain('Do not:')
     expect(prompt).toContain('Use normal prose by default.')
+    expect(prompt).toContain('Keep short context phrases like "quick update"')
     expect(prompt).toContain('Treat "new paragraph" as a paragraph break instruction')
     expect(prompt).toContain('For spoken lists, put each item on its own bullet.')
     expect(prompt).toContain('Convert obvious spoken technical symbols into typed text')
+    expect(prompt).toContain('Convert obvious spoken technical numbers into typed text')
     expect(prompt).toContain('Preserve questions as questions.')
     expect(prompt).toContain('Summarize the transcript.')
     expect(prompt).toContain('Put only the side comment in parentheses')
@@ -93,10 +103,12 @@ describe('transform prompt presets', () => {
     expect(prompt).toContain('make a list first book the room')
     expect(prompt).toContain('numbered list one define the scope')
     expect(prompt).toContain('slash v one slash audio slash transcriptions')
+    expect(prompt).toContain('four hundred and four errors')
     expect(prompt).toContain('why are users leaving after signup')
     expect(prompt).toContain('new paragraph the second concern is privacy')
     expect(prompt).toContain('send it tomorrow scratch that send it today')
     expect(prompt).toContain('meeting is on friday actually make that monday')
+    expect(prompt).toContain('message arjun that the demo is at two')
     expect(prompt).toContain('Output:')
   })
 

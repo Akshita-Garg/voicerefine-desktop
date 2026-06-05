@@ -101,8 +101,12 @@ function cleanActuallyMakeThat(text) {
   }).trim();
 }
 
+function capitalizeFirstTextChar(text) {
+  return text.replace(/^[a-z]/, char => char.toUpperCase());
+}
+
 function finalizeTransformOutput(text) {
-  const cleaned = cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))));
+  const cleaned = capitalizeFirstTextChar(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))));
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
   if (bulletLines.length >= 2) return cleaned;

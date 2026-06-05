@@ -40,7 +40,7 @@ describe('cleanSpeechArtifacts', () => {
 
 describe('finalizeTransformOutput', () => {
   it('adds terminal punctuation to prose transform output', () => {
-    expect(finalizeTransformOutput('This is a complete thought'))
+    expect(finalizeTransformOutput('this is a complete thought'))
       .toBe('This is a complete thought.')
   })
 

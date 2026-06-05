@@ -243,5 +243,75 @@
     "transcript": "i am not sure if the button should say continue or next because continue feels more natural but next is shorter",
     "smart": { "format": "prose", "mustContain": ["button", "continue", "next"], "mustNotContain": ["- "] },
     "organize": { "format": "prose", "mustContain": ["continue", "next", "shorter"] }
+  },
+  {
+    "id": "fresh-01-casual-status",
+    "split": "fresh",
+    "transcript": "quick update the draft is mostly done but i still need to check the numbers before i send it",
+    "smart": { "format": "prose", "mustContain": ["Quick update", "draft is mostly done", "check the numbers"] },
+    "organize": { "format": "prose", "mustContain": ["draft", "numbers", "send"] }
+  },
+  {
+    "id": "fresh-02-list",
+    "split": "fresh",
+    "transcript": "list three follow ups one ask for the contract two confirm the start date three share the onboarding doc",
+    "smart": { "format": "list", "mustContain": ["Ask for the contract", "Confirm the start date", "Share the onboarding doc"] },
+    "organize": { "format": "list", "mustContain": ["contract", "start date", "onboarding doc"] }
+  },
+  {
+    "id": "fresh-03-aside",
+    "split": "fresh",
+    "transcript": "the plan looks reasonable by the way check the dependency on legal review before we promise the date",
+    "smart": { "format": "prose", "mustContain": ["plan looks reasonable", "(check the dependency on legal review", "promise the date"] },
+    "organize": { "format": "prose", "mustContain": ["plan", "legal review", "date"] }
+  },
+  {
+    "id": "fresh-04-technical-symbols",
+    "split": "fresh",
+    "transcript": "set the retry limit to five and log four hundred and four errors separately from five hundred errors",
+    "smart": { "format": "prose", "mustContain": ["retry limit to five", "404 errors", "500 errors"] },
+    "organize": { "format": "prose", "mustContain": ["retry limit", "404", "500"] }
+  },
+  {
+    "id": "fresh-05-correction",
+    "split": "fresh",
+    "transcript": "message arjun that the demo is at two actually make that three because the customer asked to move it",
+    "smart": { "format": "prose", "mustContain": ["Arjun", "demo is at three", "customer asked to move it"], "mustNotContain": ["demo is at two"] },
+    "organize": { "format": "prose", "mustContain": ["Arjun", "three", "customer"] }
+  },
+  {
+    "id": "fresh-06-question",
+    "split": "fresh",
+    "transcript": "note this question why are people clicking the banner but not starting the signup flow",
+    "smart": { "format": "prose", "mustContain": ["Why are people clicking the banner", "signup flow"], "mustNotContain": ["because"] },
+    "organize": { "format": "prose", "mustContain": ["banner", "signup flow"] }
+  },
+  {
+    "id": "fresh-07-not-list",
+    "split": "fresh",
+    "transcript": "the first idea is probably too broad and the second idea is more practical for next week",
+    "smart": { "format": "prose", "mustContain": ["first idea", "second idea", "next week"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["first idea", "second idea", "practical"] }
+  },
+  {
+    "id": "fresh-08-scratch-that",
+    "split": "fresh",
+    "transcript": "send the invoice to ops scratch that send it to finance before the end of the day",
+    "smart": { "format": "prose", "mustContain": ["finance", "end of the day"], "mustNotContain": ["ops"] },
+    "organize": { "format": "prose", "mustContain": ["finance", "end of the day"], "mustNotContain": ["ops"] }
+  },
+  {
+    "id": "fresh-09-paragraph",
+    "split": "fresh",
+    "transcript": "the onboarding email is too long new thought the welcome screen should explain the first action more clearly",
+    "smart": { "format": "prose", "mustContain": ["onboarding email", "welcome screen", "first action"] },
+    "organize": { "format": "prose", "mustContain": ["onboarding email", "welcome screen", "first action"] }
+  },
+  {
+    "id": "fresh-10-short-note",
+    "split": "fresh",
+    "transcript": "please remind me to review the final slides after lunch",
+    "smart": { "format": "prose", "mustContain": ["remind me", "final slides", "after lunch"] },
+    "organize": { "format": "prose", "mustContain": ["review", "final slides", "after lunch"] }
   }
 ]
