@@ -34,6 +34,14 @@ function cleanActuallyMakeThat(text) {
   }).trim()
 }
 
+function removeFormattingCommandLines(text) {
+  return text
+    .split(/\r?\n/)
+    .filter(line => !/^([-*]|\d+[.)])\s+(?:make a list|numbered list|new paragraph)\.?$/i.test(line.trim()))
+    .join('\n')
+    .trim()
+}
+
 function capitalizeFirstTextChar(text) {
   return text.replace(/^[a-z]/, char => char.toUpperCase())
 }
@@ -41,7 +49,7 @@ function capitalizeFirstTextChar(text) {
 export function finalizeTransformOutput(text) {
   if (!text) return text
 
-  const cleaned = capitalizeFirstTextChar(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))))
+  const cleaned = capitalizeFirstTextChar(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))))
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line))
   if (bulletLines.length >= 2) return cleaned

@@ -101,12 +101,20 @@ function cleanActuallyMakeThat(text) {
   }).trim();
 }
 
+function removeFormattingCommandLines(text) {
+  return text
+    .split(/\r?\n/)
+    .filter(line => !/^([-*]|\d+[.)])\s+(?:make a list|numbered list|new paragraph)\.?$/i.test(line.trim()))
+    .join('\n')
+    .trim();
+}
+
 function capitalizeFirstTextChar(text) {
   return text.replace(/^[a-z]/, char => char.toUpperCase());
 }
 
 function finalizeTransformOutput(text) {
-  const cleaned = capitalizeFirstTextChar(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))));
+  const cleaned = capitalizeFirstTextChar(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))));
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
   if (bulletLines.length >= 2) return cleaned;
@@ -144,8 +152,11 @@ function detectFormat(output) {
 function evaluateOutput({ output, expectation }) {
   const failures = [];
   const format = detectFormat(output);
-  if (expectation.format && format !== expectation.format) {
-    failures.push(`format expected ${expectation.format}, got ${format}`);
+  const expectedFormats = Array.isArray(expectation.format)
+    ? expectation.format
+    : expectation.format ? [expectation.format] : [];
+  if (expectedFormats.length > 0 && !expectedFormats.includes(format)) {
+    failures.push(`format expected ${expectedFormats.join(' or ')}, got ${format}`);
   }
   for (const item of expectation.mustContain ?? []) {
     if (!includesLoose(output, item)) failures.push(`missing "${item}"`);

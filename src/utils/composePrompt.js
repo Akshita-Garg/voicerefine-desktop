@@ -17,6 +17,7 @@ Do:
 - Use normal prose by default.
 - Use bullets when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
 - For spoken lists, put each item on its own bullet. Remove list marker words like "one", "two", and "three" from the final items.
+- Treat phrases like "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
 - Put only the side comment in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Continue the main sentence after the parenthesis if the speaker continues.
 - Apply obvious corrections like "actually", "no wait", or "scratch that".
 - Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
@@ -121,6 +122,8 @@ Do:
 - Use bullets or numbered lists when the speaker gives list items, tasks, steps, or several distinct points.
 - Keep simple messages as prose.
 - Do not turn one simple sentence, aside, or correction into bullets.
+- Treat phrases like "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
+- Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
 
 Do not:
 - Add new ideas.
@@ -145,6 +148,11 @@ Output:
 Hi Alex, thanks for sending the deck. I looked through it, and the opening section is strong. The pricing slide needs one more example.
 
 Example:
+Input: the first version felt too formal and the second version felt too casual so i think we need something in the middle
+Output:
+The first version felt too formal, while the second version felt too casual. I think we need something in the middle.
+
+Example:
 Input: we should meet on thursday side note bring the printed forms and then we can finish everything before lunch
 Output:
 We should meet on Thursday. Bring the printed forms, and then we can finish everything before lunch.
@@ -153,6 +161,11 @@ Example:
 Input: schedule the call for tuesday actually no wait make it wednesday afternoon because tuesday is packed
 Output:
 Schedule the call for Wednesday afternoon because Tuesday is packed.
+
+Example:
+Input: keep the api endpoint at slash v one slash audio slash transcriptions because changing it could break the integration
+Output:
+Keep the API endpoint at /v1/audio/transcriptions because changing it could break the integration.
 
 Example:
 Input: i talked to maria about the event and she can handle the venue but we still need someone for food also the budget is around five thousand and we should confirm the date before friday

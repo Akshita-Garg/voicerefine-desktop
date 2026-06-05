@@ -50,6 +50,11 @@ describe('finalizeTransformOutput', () => {
       .toBe('- One thing\n- Another thing')
   })
 
+  it('removes formatting command bullets from transform output', () => {
+    expect(finalizeTransformOutput('- Make a list.\n- Book the room.\n- Invite the team.'))
+      .toBe('- Book the room.\n- Invite the team.')
+  })
+
   it('applies scratch-that corrections left in model output', () => {
     expect(finalizeTransformOutput('Send it to Rachel tomorrow. Scratch that send it to Rachel today before five.'))
       .toBe('Send it to Rachel today before five.')

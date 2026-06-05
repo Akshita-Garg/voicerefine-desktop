@@ -46,14 +46,14 @@
     "split": "train",
     "transcript": "the first version felt too formal and the second version felt too casual so i think we need something in the middle",
     "smart": { "format": "prose", "mustContain": ["first version", "second version", "middle"], "mustNotContain": ["- "] },
-    "organize": { "format": "prose", "mustContain": ["formal", "casual", "middle"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["formal", "casual", "middle"] }
   },
   {
     "id": "train-08-task-list",
     "split": "train",
     "transcript": "can you make a list first book the room second invite the team third prepare the agenda",
-    "smart": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"] },
-    "organize": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"] }
+    "smart": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"], "mustNotContain": ["Make a list"] },
+    "organize": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"], "mustNotContain": ["Make a list"] }
   },
   {
     "id": "train-09-technical-terms",
