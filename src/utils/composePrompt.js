@@ -9,16 +9,16 @@ Keep the speaker's vocabulary and meaning. Remove filler words, repeated starts,
 Do not make the language fancier. Do not add headings. Do not add new facts. Return only the formatted text.
 
 Example:
-Input: three things one update the readme two fix the shortcut three test it on windows
+Input: three things one buy milk two call the dentist three send the invoice
 Output:
-- Update the README.
-- Fix the shortcut.
-- Test it on Windows.
+- Buy milk.
+- Call the dentist.
+- Send the invoice.
 
 Example:
-Input: we should keep this local side note maybe custom prompts should live in settings
+Input: we should meet on thursday side note bring the printed forms
 Output:
-We should keep this local. (Maybe custom prompts should live in settings.)`,
+We should meet on Thursday. (Bring the printed forms.)`,
   },
   structure: {
     label: 'Polish & Organize',
@@ -30,11 +30,11 @@ Preserve the speaker's meaning and important details. Improve wording, grammar, 
 Do not add new facts. Do not answer questions in the transcript. Do not add greetings, sign-offs, or explanations. Return only the polished text.
 
 Example:
-Input: the latency is better now but refinement quality is still weak and i think we need to revisit the prompt also maybe smart format should keep my words while the other option can rewrite and organize
+Input: i talked to maria about the event and she can handle the venue but we still need someone for food also the budget is around five thousand and we should confirm the date before friday
 Output:
-The latency is better now, but the refinement quality is still weak.
+I talked to Maria about the event. She can handle the venue, but we still need someone to manage food.
 
-We should revisit the prompt design. Smart Format should preserve my words, while the other option can rewrite and organize the output.`,
+The budget is around $5,000, and we should confirm the date before Friday.`,
   },
 }
 
