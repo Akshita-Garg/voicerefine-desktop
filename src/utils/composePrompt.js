@@ -13,7 +13,8 @@ Do:
 - Add punctuation and capitalization, including obvious names and sentence starts.
 - Split into paragraphs when the speaker changes thought.
 - Use normal prose by default.
-- Use bullets or numbers only when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
+- Use bullets when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
+- For spoken lists, put each item on its own bullet. Remove list marker words like "one", "two", and "three" from the final items.
 - Put only the side comment in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Continue the main sentence after the parenthesis if the speaker continues.
 - Apply obvious corrections like "actually", "no wait", or "scratch that".
 
@@ -32,6 +33,11 @@ Example:
 Input: i am trying to understand what kind of changes i can make to the plan so it works better and gets closer to what i intended
 Output:
 I am trying to understand what kind of changes I can make to the plan so it works better and gets closer to what I intended.
+
+Example:
+Input: hi alex um thanks for sending the notes i looked through them and the summary is helpful
+Output:
+Hi Alex, thanks for sending the notes. I looked through them and the summary is helpful.
 
 Example:
 Input: three things one buy milk two call the dentist three send the invoice

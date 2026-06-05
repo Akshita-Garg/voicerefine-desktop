@@ -79,11 +79,13 @@ describe('transform prompt presets', () => {
     expect(prompt).toContain('Do:')
     expect(prompt).toContain('Do not:')
     expect(prompt).toContain('Use normal prose by default.')
+    expect(prompt).toContain('For spoken lists, put each item on its own bullet.')
     expect(prompt).toContain('Put only the side comment in parentheses')
     expect(prompt).toContain('Leave "um" or "uh" in the output.')
     expect(prompt).toContain('Rewrite the speaker\'s vocabulary.')
     expect(prompt).toContain('Turn related phrases into bullets unless the speaker clearly asks for a list.')
     expect(prompt).toContain('what kind of changes i can make to the plan')
+    expect(prompt).toContain('hi alex um thanks for sending the notes')
     expect(prompt).toContain('Output:')
   })
 

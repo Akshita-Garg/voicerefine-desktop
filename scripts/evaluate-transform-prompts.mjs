@@ -78,6 +78,15 @@ function cleanRefinementOutput(text) {
     .trim();
 }
 
+function cleanSpeechArtifacts(text) {
+  return text
+    .replace(/(^|[\s([{])(?:uh|um)[,.;:!?]?(?=\s|$)/gi, '$1')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+$/gm, '')
+    .trim();
+}
+
 function includesLoose(text, expected) {
   if (!/[a-z0-9]/i.test(expected)) return text.includes(expected);
 
@@ -215,7 +224,7 @@ try {
       });
       session.dispose?.({ disposeSequence: false });
 
-      const output = cleanRefinementOutput(rawOutput);
+      const output = cleanSpeechArtifacts(cleanRefinementOutput(rawOutput));
       const expectation = expectationFor(item, preset);
       const evaluation = evaluateOutput({ output, expectation });
       const failures = [

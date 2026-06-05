@@ -54,10 +54,10 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
     if (!window.voicerefine?.refineBuiltin) {
       throw new Error('Built-in refinement is unavailable. Restart the desktop app and try again.')
     }
-    const output = cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, {
+    const output = cleanSpeechArtifacts(cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, {
       maxTokens,
       ...transformSamplingFor({ preset }),
-    }))
+    })))
     return output
   }
 
@@ -97,7 +97,7 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
   const data = await response.json()
   const content = data?.choices?.[0]?.message?.content
   if (!content) throw new Error('Unexpected response format from provider')
-  return cleanRefinementOutput(content)
+  return cleanSpeechArtifacts(cleanRefinementOutput(content))
 }
 
 /**
