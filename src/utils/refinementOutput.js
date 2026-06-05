@@ -36,6 +36,7 @@ function cleanActuallyMakeThat(text) {
 
 function removeFormattingCommandLines(text) {
   return text
+    .replace(/\bnew thought\b\s*/gi, '')
     .split(/\r?\n/)
     .filter(line => !/^([-*]|\d+[.)])\s+(?:make a list|numbered list|new paragraph)\.?$/i.test(line.trim()))
     .join('\n')

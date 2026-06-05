@@ -55,6 +55,11 @@ describe('normalizeTranscriptForTransform', () => {
     expect(normalizeTranscriptForTransform('send the invoice to ops scratch that send it to finance before the end of the day'))
       .toBe('send it to finance before the end of the day')
   })
+
+  it('normalizes bracket cues to side-note cues', () => {
+    expect(normalizeTranscriptForTransform('the quote is fine in brackets check whether this includes tax'))
+      .toBe('the quote is fine side note check whether this includes tax')
+  })
 })
 
 describe('composeShortcutTransformPrompt', () => {

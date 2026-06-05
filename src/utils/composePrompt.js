@@ -123,6 +123,7 @@ Do:
 - Keep simple messages as prose.
 - Do not turn one simple sentence, aside, or correction into bullets.
 - Treat phrases like "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
+- Never drop the text before "side note", "by the way", or "in brackets".
 - Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
 
 Do not:
@@ -151,6 +152,18 @@ Example:
 Input: the first version felt too formal and the second version felt too casual so i think we need something in the middle
 Output:
 The first version felt too formal, while the second version felt too casual. I think we need something in the middle.
+
+Example:
+Input: the design looks good overall i like the spacing and the colors new thought we should still test it on a smaller screen before we ship
+Output:
+The design looks good overall. I like the spacing and the colors.
+
+We should still test it on a smaller screen before we ship.
+
+Example:
+Input: the quote is fine in brackets check whether this includes tax and then send it to finance
+Output:
+The quote is fine. (Check whether this includes tax.) Then send it to finance.
 
 Example:
 Input: we should meet on thursday side note bring the printed forms and then we can finish everything before lunch
@@ -189,6 +202,7 @@ export function defaultPromptForPreset(preset) {
 export function normalizeTranscriptForTransform(transcript) {
   return transcript
     .replace(/^.*\bscratch that\b[,.;:!?\s]*/i, '')
+    .replace(/\bin brackets\b/gi, 'side note')
     .trim()
 }
 

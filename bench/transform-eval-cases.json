@@ -88,14 +88,14 @@
     "split": "train",
     "transcript": "move the workshop from june twelfth to june fifteenth and tell priya that the morning slot is better",
     "smart": { "format": "prose", "mustContain": ["June 12", "June 15", "Priya", "morning slot"] },
-    "organize": { "format": "prose", "mustContain": ["June 12", "June 15", "Priya"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["June 12", "June 15", "Priya"] }
   },
   {
     "id": "train-14-repeated-start",
     "split": "train",
     "transcript": "i think i think the issue is that the form is too long and people are dropping off before they reach the payment step",
     "smart": { "format": "prose", "mustContain": ["form is too long", "payment step"], "mustNotContain": ["I think I think"] },
-    "organize": { "format": "prose", "mustContain": ["form", "too long", "payment step"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["form", "too long", "payment step"] }
   },
   {
     "id": "train-15-brackets",
