@@ -76,6 +76,7 @@ describe('composeShortcutTransformPrompt', () => {
     expect(shortcut.system).toBe('')
     expect(shortcut.user.length).toBeLessThan(full.user.length)
     expect(shortcut.user).toContain(transcript)
+    expect(shortcut.user).toContain('The examples above are examples only. Do not copy them.')
     expect(shortcut.user).toContain('Return only the final text.')
   })
 

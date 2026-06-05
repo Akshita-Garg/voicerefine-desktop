@@ -130,7 +130,7 @@
     "split": "train",
     "transcript": "write this down why are users leaving after signup and what can we ask them in the survey",
     "smart": { "format": "prose", "mustContain": ["Why are users leaving", "what can we ask"], "mustNotContain": ["Users are leaving because"] },
-    "organize": { "format": "prose", "mustContain": ["users leaving", "survey"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["users are leaving", "survey"] }
   },
   {
     "id": "train-20-casual-note",
