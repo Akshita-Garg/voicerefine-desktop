@@ -48,6 +48,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [apiKey, setApiKey] = useState('')
   const [nativeAsrModel, setNativeAsrModel] = useState(NATIVE_ASR_MODEL_PARAKEET_Q4)
   const [transformPromptMode, setTransformPromptMode] = useState(TRANSFORM_PROMPT_MODE_PRESET)
+  const [transformPromptEditorOpen, setTransformPromptEditorOpen] = useState(false)
   const [clarityPrompt, setClarityPrompt] = useState('')
   const [structurePrompt, setStructurePrompt] = useState('')
   const [asrModelStatus, setAsrModelStatus] = useState('idle')
@@ -61,7 +62,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setProvider(stored === 'browser' || stored === 'ollama' ? 'builtin' : stored)
     setApiKey(localStorage.getItem('vr_api_key') ?? '')
     setNativeAsrModel(currentNativeAsrModel())
-    setTransformPromptMode(readTransformPromptMode())
+    const storedTransformPromptMode = readTransformPromptMode()
+    setTransformPromptMode(storedTransformPromptMode)
+    setTransformPromptEditorOpen(storedTransformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM)
     setClarityPrompt(readStoredPromptDraftForPreset('clarity'))
     setStructurePrompt(readStoredPromptDraftForPreset('structure'))
     setAsrModelStatus('idle')
@@ -93,6 +96,30 @@ export function SettingsPanel({ open, onClose, onSaved }) {
         setKeyError(err.message)
       }
     }
+  }
+
+  const handleTransformPromptChange = (preset, value) => {
+    setTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)
+    if (preset === 'clarity') {
+      setClarityPrompt(value)
+    } else {
+      setStructurePrompt(value)
+    }
+  }
+
+  const handleResetTransformPrompt = (preset) => {
+    setTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)
+    if (preset === 'clarity') {
+      setClarityPrompt(defaultPromptForPreset('clarity'))
+    } else {
+      setStructurePrompt(defaultPromptForPreset('structure'))
+    }
+  }
+
+  const handleUseBuiltInTransformPrompts = () => {
+    setTransformPromptMode(TRANSFORM_PROMPT_MODE_PRESET)
+    setClarityPrompt(defaultPromptForPreset('clarity'))
+    setStructurePrompt(defaultPromptForPreset('structure'))
   }
 
   const canSave =
@@ -251,39 +278,43 @@ export function SettingsPanel({ open, onClose, onSaved }) {
 
           <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transform Prompts</h3>
-            <div className="flex flex-col gap-2">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="transform-prompt-mode"
-                  value={TRANSFORM_PROMPT_MODE_PRESET}
-                  checked={transformPromptMode === TRANSFORM_PROMPT_MODE_PRESET}
-                  onChange={() => setTransformPromptMode(TRANSFORM_PROMPT_MODE_PRESET)}
-                  className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-                />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm text-[#3A2F2A] font-medium">Use built-in prompts</span>
-                  <span className="text-xs text-[#8A766E] leading-snug">Recommended. VoiceRefine uses tuned prompts for smart formatting and organized rewriting.</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="transform-prompt-mode"
-                  value={TRANSFORM_PROMPT_MODE_CUSTOM}
-                  checked={transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM}
-                  onChange={() => setTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)}
-                  className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-                />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm text-[#3A2F2A] font-medium">Use custom prompts</span>
-                  <span className="text-xs text-[#8A766E] leading-snug">Advanced. Edit the prompt behind each transform option.</span>
-                </span>
-              </label>
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-[#8A766E] leading-snug">
+                VoiceRefine uses built-in prompts for Smart Format and Polish & Organize. If you edit and save these transforms, your prompts will be used when you choose those transform options.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTransformPromptEditorOpen(open => !open)}
+                  className="px-3 py-2 rounded-lg text-sm text-[#3A2F2A] border border-[rgba(58,47,42,0.08)] hover:bg-[rgba(58,47,42,0.05)] transition-colors"
+                >
+                  {transformPromptEditorOpen ? 'Hide transforms' : 'Edit transforms'}
+                </button>
+                {transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">
+                    Edited
+                  </span>
+                )}
+              </div>
             </div>
 
-            {transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM && (
+            {transformPromptEditorOpen && (
               <div className="mt-4 flex flex-col gap-4">
+                <div className="rounded-xl border border-[rgba(127,175,143,0.25)] px-3 py-3 bg-[rgba(127,175,143,0.07)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs text-[#4A7A5E] leading-snug">
+                      Changes here replace the built-in prompt for that transform after you save Settings.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleUseBuiltInTransformPrompts}
+                      className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors flex-shrink-0"
+                    >
+                      Use built-in
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-3">
                     <label htmlFor="clarity-prompt" className="text-sm font-medium text-[#3A2F2A]">
@@ -291,7 +322,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setClarityPrompt(defaultPromptForPreset('clarity'))}
+                      onClick={() => handleResetTransformPrompt('clarity')}
                       className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     >
                       Reset
@@ -300,7 +331,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                   <textarea
                     id="clarity-prompt"
                     value={clarityPrompt}
-                    onChange={e => setClarityPrompt(e.target.value)}
+                    onChange={e => handleTransformPromptChange('clarity', e.target.value)}
                     className="w-full h-40 rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
                     style={{ background: '#E6CFC7' }}
                   />
@@ -313,7 +344,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setStructurePrompt(defaultPromptForPreset('structure'))}
+                      onClick={() => handleResetTransformPrompt('structure')}
                       className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     >
                       Reset
@@ -322,7 +353,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                   <textarea
                     id="structure-prompt"
                     value={structurePrompt}
-                    onChange={e => setStructurePrompt(e.target.value)}
+                    onChange={e => handleTransformPromptChange('structure', e.target.value)}
                     className="w-full h-40 rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 text-sm text-[#3A2F2A] resize-none outline-none focus:border-[#7FAF8F]/50"
                     style={{ background: '#E6CFC7' }}
                   />
