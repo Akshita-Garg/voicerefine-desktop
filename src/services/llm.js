@@ -1,7 +1,7 @@
 // Cloud providers speak the OpenAI chat/completions format.
 // Gemini supports it via their OpenAI-compatible layer at a different base URL.
 import { readProviderConfig } from '../utils/providerConfig'
-import { cleanRefinementOutput, cleanSpeechArtifacts } from '../utils/refinementOutput'
+import { cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from '../utils/refinementOutput'
 
 const PROVIDERS = {
   openai: {
@@ -32,8 +32,11 @@ export function cleanTranscriptText(text) {
 }
 
 function transformSamplingFor({ preset }) {
-  if (preset === 'bullets') {
-    return { temperature: 0.7, topP: 0.9, topK: 48 }
+  if (preset === 'clarity' || preset === 'bullets') {
+    return { temperature: 0.65, topP: 0.9, topK: 48 }
+  }
+  if (preset === 'structure') {
+    return { temperature: 0.8, topP: 0.92, topK: 64 }
   }
   return { temperature: 0.9, topP: 0.95, topK: 64 }
 }
@@ -54,10 +57,10 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
     if (!window.voicerefine?.refineBuiltin) {
       throw new Error('Built-in refinement is unavailable. Restart the desktop app and try again.')
     }
-    const output = cleanSpeechArtifacts(cleanRefinementOutput(await window.voicerefine.refineBuiltin(system, user, {
+    const output = finalizeTransformOutput(await window.voicerefine.refineBuiltin(system, user, {
       maxTokens,
       ...transformSamplingFor({ preset }),
-    })))
+    }))
     return output
   }
 
@@ -97,7 +100,7 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
   const data = await response.json()
   const content = data?.choices?.[0]?.message?.content
   if (!content) throw new Error('Unexpected response format from provider')
-  return cleanSpeechArtifacts(cleanRefinementOutput(content))
+  return finalizeTransformOutput(content)
 }
 
 /**

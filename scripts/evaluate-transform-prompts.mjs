@@ -87,6 +87,16 @@ function cleanSpeechArtifacts(text) {
     .trim();
 }
 
+function finalizeTransformOutput(text) {
+  const cleaned = cleanSpeechArtifacts(cleanRefinementOutput(text));
+  const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
+  if (bulletLines.length >= 2) return cleaned;
+  if (/[.!?)]$/.test(cleaned)) return cleaned;
+  if (!/[a-z0-9]$/i.test(cleaned)) return cleaned;
+  return `${cleaned}.`;
+}
+
 function includesLoose(text, expected) {
   if (!/[a-z0-9]/i.test(expected)) return text.includes(expected);
 
@@ -107,8 +117,9 @@ function includesLoose(text, expected) {
 
 function detectFormat(output) {
   const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
-  if (bulletLines.length >= 2 && bulletLines.length >= Math.ceil(lines.length * 0.6)) return 'list';
+  const listLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line)
+    || /^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)[,.:)]\s+/i.test(line));
+  if (listLines.length >= 2 && listLines.length >= Math.ceil(lines.length * 0.6)) return 'list';
   return 'prose';
 }
 
@@ -224,7 +235,7 @@ try {
       });
       session.dispose?.({ disposeSequence: false });
 
-      const output = cleanSpeechArtifacts(cleanRefinementOutput(rawOutput));
+      const output = finalizeTransformOutput(rawOutput);
       const expectation = expectationFor(item, preset);
       const evaluation = evaluateOutput({ output, expectation });
       const failures = [

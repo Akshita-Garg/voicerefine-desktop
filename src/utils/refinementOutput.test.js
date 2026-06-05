@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanRefinementOutput, cleanSpeechArtifacts } from './refinementOutput'
+import { cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from './refinementOutput'
 
 describe('cleanRefinementOutput', () => {
   it('trims whitespace without changing content', () => {
@@ -35,5 +35,17 @@ describe('cleanSpeechArtifacts', () => {
       .toBe('this is still the same sentence.')
     expect(cleanSpeechArtifacts('This is uh,  still okay.'))
       .toBe('This is still okay.')
+  })
+})
+
+describe('finalizeTransformOutput', () => {
+  it('adds terminal punctuation to prose transform output', () => {
+    expect(finalizeTransformOutput('This is a complete thought'))
+      .toBe('This is a complete thought.')
+  })
+
+  it('does not add a trailing period to bullet lists', () => {
+    expect(finalizeTransformOutput('- One thing\n- Another thing'))
+      .toBe('- One thing\n- Another thing')
   })
 })
