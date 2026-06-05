@@ -24,6 +24,8 @@ const presetArg = args.get('preset') ?? 'all';
 const gpu = args.get('gpu') ?? process.env.VOICEREFINE_LLAMA_GPU ?? 'auto';
 const limit = Number.parseInt(args.get('limit') ?? '', 10);
 const dryRun = args.has('dry-run');
+const resultsDir = path.resolve(appRoot, args.get('results-dir') ?? 'bench/results');
+const runLabel = args.get('label') ?? new Date().toISOString().replace(/[:.]/g, '-');
 
 function loadComposePromptModule(source) {
   const transformed = source
@@ -112,7 +114,7 @@ function expectationFor(item, preset) {
 }
 
 if (dryRun) {
-  console.log('[eval] dry run', { split, cases: allCases.length, presets, modelPath, gpu });
+  console.log('[eval] dry run', { split, cases: allCases.length, presets, modelPath, gpu, resultsDir, runLabel });
   process.exit(0);
 }
 
@@ -139,6 +141,7 @@ console.log('[eval] model ready', {
 });
 
 const results = [];
+const runStartedAt = performance.now();
 
 try {
   for (const item of allCases) {
@@ -198,12 +201,32 @@ try {
 
 const passed = results.filter(item => item.ok).length;
 const failed = results.length - passed;
-console.log('[eval] summary', {
+const summary = {
   split,
   presets,
   passed,
   failed,
   total: results.length,
-});
+  totalMs: Math.round(performance.now() - runStartedAt),
+};
+
+await fs.mkdir(resultsDir, { recursive: true });
+const safePreset = presets.join('-').replace(/[^a-z0-9_-]+/gi, '-');
+const resultsPath = path.join(resultsDir, `${runLabel}-${split}-${safePreset}.json`);
+await fs.writeFile(resultsPath, JSON.stringify({
+  summary,
+  config: {
+    split,
+    presets,
+    gpu,
+    modelPath,
+    casesPath,
+    limit: Number.isInteger(limit) && limit > 0 ? limit : null,
+  },
+  results,
+}, null, 2));
+
+console.log('[eval] summary', summary);
+console.log('[eval] results written', resultsPath);
 
 if (failed > 0) process.exitCode = 1;
