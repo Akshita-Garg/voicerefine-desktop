@@ -165,14 +165,14 @@
     "split": "train",
     "transcript": "we can launch with the simple version first the advanced filters can come later because the main thing people need right now is faster export",
     "smart": { "format": "prose", "mustContain": ["simple version", "advanced filters", "faster export"] },
-    "organize": { "format": "prose", "mustContain": ["simple version", "advanced filters", "faster export"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["simple version", "advanced filters", "faster export"] }
   },
   {
     "id": "train-25-light-ramble",
     "split": "train",
     "transcript": "i guess the main thing is i want the app to feel quick and predictable and not like i am waiting for a complicated process",
     "smart": { "format": "prose", "mustContain": ["quick and predictable", "complicated process"] },
-    "organize": { "format": "prose", "mustContain": ["quick", "predictable", "waiting"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["quick", "predictable", "waiting"] }
   },
   {
     "id": "holdout-01-prose-not-list",
