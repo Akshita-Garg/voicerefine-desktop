@@ -53,8 +53,8 @@ function syncRefinementSettings() {
   })
 }
 
-function warmSelectedRefinementProvider() {
-  if (readProvider() !== 'builtin') return
+function warmSelectedRefinementProvider({ refinementMode = readRefinementMode(), provider = readProvider() } = {}) {
+  if (provider !== 'builtin' || refinementMode !== REFINEMENT_MODE_TRANSFORM) return
   warmBuiltinRefinement().catch(err => {
     console.warn('[refine] warmup failed', err)
   })
@@ -117,6 +117,7 @@ function App() {
     setRefinementMode(nextMode)
     setTransformPreset(nextPreset)
     void syncRefinementSettings()
+    warmSelectedRefinementProvider({ refinementMode: nextMode, provider })
   }
 
   const handleAudioReady = async (blob) => {
@@ -178,9 +179,12 @@ function App() {
   }
 
   const handleSettingsSaved = () => {
-    setProvider(readProvider())
+    const nextProvider = readProvider()
+    const nextMode = readRefinementMode()
+    setProvider(nextProvider)
+    setRefinementMode(nextMode)
     void syncRefinementSettings()
-    warmSelectedRefinementProvider()
+    warmSelectedRefinementProvider({ refinementMode: nextMode, provider: nextProvider })
   }
 
   const handleRefinementModeChange = (value) => {
@@ -403,10 +407,13 @@ function App() {
         <Onboarding
           onComplete={() => {
             setOnboardingDone(true)
-            setProvider(readProvider())
-            setRefinementMode(readRefinementMode())
+            const nextProvider = readProvider()
+            const nextMode = readRefinementMode()
+            setProvider(nextProvider)
+            setRefinementMode(nextMode)
             setTransformPreset(readTransformPreset())
             void syncRefinementSettings()
+            warmSelectedRefinementProvider({ refinementMode: nextMode, provider: nextProvider })
           }}
         />
       )}

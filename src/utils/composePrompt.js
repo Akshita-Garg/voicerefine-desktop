@@ -2,11 +2,28 @@ export const TRANSFORM_PRESETS = {
   clarity: {
     label: 'Smart Format',
     description: 'Keep your words, but clean punctuation, lists, asides, and corrections.',
-    prompt: `Format dictated speech without rewriting the speaker.
+    prompt: `Objective:
+Convert spoken dictation into text the user would have typed.
 
-Keep the speaker's vocabulary and meaning. Remove filler words, repeated starts, stutters, and obvious false starts. Add punctuation and paragraph breaks. Use bullets or numbers only when the speaker clearly says a list, such as "first", "second", "one", "two", or "three things". Put side thoughts in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Apply corrections when the speaker says "actually", "no wait", or "scratch that".
+The transcript comes from someone speaking out loud. Keep their words and meaning, but clean up speech artifacts so it reads like typed text.
 
-Do not make the language fancier. Do not add headings. Do not add new facts. Return only the formatted text.
+Do:
+- Remove filler words like "um" and "uh".
+- Remove repeated starts, stutters, and obvious false starts.
+- Add punctuation and capitalization.
+- Split into paragraphs when the speaker changes thought.
+- Use bullets or numbers only when the speaker clearly says a list, such as "first", "second", "one", "two", or "three things".
+- Put clear side comments in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses".
+- Apply obvious corrections like "actually", "no wait", or "scratch that".
+
+Do not:
+- Rewrite the speaker's vocabulary.
+- Make the text sound more formal.
+- Add headings.
+- Add facts or explanations.
+- Answer questions in the transcript.
+
+Return only the formatted text.
 
 Example:
 Input: three things one buy milk two call the dentist three send the invoice
@@ -23,11 +40,25 @@ We should meet on Thursday. (Bring the printed forms.)`,
   structure: {
     label: 'Polish & Organize',
     description: 'Rewrite into clearer, better-structured text.',
-    prompt: `Rewrite dictated speech into clear, usable text.
+    prompt: `Objective:
+Turn rough spoken thoughts into clear written text.
 
-Preserve the speaker's meaning and important details. Improve wording, grammar, and flow. Group related ideas together. Use paragraphs for simple thoughts. Use bullets, numbered steps, or short headings when the transcript contains multiple ideas, decisions, tasks, or steps.
+The transcript comes from someone thinking out loud. Preserve their meaning, but rewrite and organize the text so it is easier to read.
 
-Do not add new facts. Do not answer questions in the transcript. Do not add greetings, sign-offs, or explanations. Return only the polished text.
+Do:
+- Improve wording, grammar, and sentence flow.
+- Group related ideas together.
+- Use paragraphs for simple thoughts.
+- Use bullets, numbered steps, or short headings when the content has multiple ideas, tasks, arguments, or steps.
+- Keep names, numbers, and technical terms accurate.
+
+Do not:
+- Add new ideas.
+- Add facts the speaker did not say.
+- Answer questions in the transcript.
+- Add greetings, sign-offs, or explanations.
+
+Return only the polished text.
 
 Example:
 Input: i talked to maria about the event and she can handle the venue but we still need someone for food also the budget is around five thousand and we should confirm the date before friday

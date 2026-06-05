@@ -75,17 +75,19 @@ describe('composeShortcutTransformPrompt', () => {
 describe('transform prompt presets', () => {
   it('keeps smart format focused on faithful formatting', () => {
     const prompt = defaultPromptForPreset('clarity')
-    expect(prompt).toContain('Format dictated speech without rewriting the speaker.')
-    expect(prompt).toContain('Keep the speaker\'s vocabulary and meaning.')
+    expect(prompt).toContain('Convert spoken dictation into text the user would have typed.')
+    expect(prompt).toContain('Do:')
+    expect(prompt).toContain('Do not:')
+    expect(prompt).toContain('Rewrite the speaker\'s vocabulary.')
     expect(prompt).toContain('Output:')
-    expect(prompt).toContain('Do not make the language fancier.')
   })
 
   it('lets polish and organize rewrite and structure when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('Rewrite dictated speech into clear, usable text.')
-    expect(prompt).toContain('Improve wording, grammar, and flow.')
+    expect(prompt).toContain('Turn rough spoken thoughts into clear written text.')
+    expect(prompt).toContain('The transcript comes from someone thinking out loud.')
     expect(prompt).toContain('Use bullets, numbered steps, or short headings')
+    expect(prompt).toContain('Add facts the speaker did not say.')
     expect(prompt).toContain('Output:')
   })
 })
