@@ -5,6 +5,7 @@ export function cleanRefinementOutput(text) {
     .trim()
     .replace(/^(refined (?:text|bullet list|output)|output|result)\s*:\s*/i, '')
     .replace(/^here(?:'s| is)\s+(?:the\s+)?(?:refined|cleaned|rewritten)\s+(?:text|transcript|bullet list|output)\s*:\s*/i, '')
+    .replace(/^here(?:'s| is)\s+a\s+polished\s+version\s+of\s+the\s+text[^\n]*:\s*/i, '')
     .trim()
 }
 

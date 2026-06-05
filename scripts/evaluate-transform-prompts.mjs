@@ -67,7 +67,7 @@ function calculateMaxTokens(transcript) {
 
 function samplingFor(preset) {
   if (preset === 'clarity') return { temperature: 0.65, topP: 0.9, topK: 48 };
-  return { temperature: 0.8, topP: 0.92, topK: 64 };
+  return { temperature: 0.65, topP: 0.9, topK: 48 };
 }
 
 function cleanRefinementOutput(text) {

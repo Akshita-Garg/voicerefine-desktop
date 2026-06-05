@@ -36,7 +36,7 @@ function transformSamplingFor({ preset }) {
     return { temperature: 0.65, topP: 0.9, topK: 48 }
   }
   if (preset === 'structure') {
-    return { temperature: 0.8, topP: 0.92, topK: 64 }
+    return { temperature: 0.65, topP: 0.9, topK: 48 }
   }
   return { temperature: 0.9, topP: 0.95, topK: 64 }
 }

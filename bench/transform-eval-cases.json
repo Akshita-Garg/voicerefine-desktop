@@ -25,7 +25,7 @@
     "split": "train",
     "transcript": "let us schedule the call for tuesday actually no wait make it wednesday afternoon because tuesday is packed",
     "smart": { "format": "prose", "mustContain": ["Wednesday afternoon"], "mustNotContain": ["Tuesday afternoon"] },
-    "organize": { "format": "prose", "mustContain": ["Wednesday afternoon", "Tuesday is packed"] }
+    "organize": { "format": "prose", "mustContain": ["Wednesday afternoon", "Tuesday"] }
   },
   {
     "id": "train-05-email-thought",

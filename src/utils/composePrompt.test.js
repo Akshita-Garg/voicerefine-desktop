@@ -114,10 +114,12 @@ describe('transform prompt presets', () => {
 
   it('lets polish and organize rewrite and structure when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('Turn rough spoken thoughts into clear written text.')
+    expect(prompt).toContain('Rewrite rough spoken dictation into clear, organized text.')
     expect(prompt).toContain('The transcript comes from someone thinking out loud.')
-    expect(prompt).toContain('Use bullets, numbered steps, or short headings')
+    expect(prompt).toContain('Use bullets or numbered lists')
+    expect(prompt).toContain('Do not turn one simple sentence, aside, or correction into bullets.')
     expect(prompt).toContain('Add facts the speaker did not say.')
+    expect(prompt).toContain('Create examples, action plans, analysis, or recommendations.')
     expect(prompt).toContain('Output:')
   })
 })

@@ -15,6 +15,7 @@ describe('cleanRefinementOutput', () => {
   it('removes chatty preambles without rewriting the output', () => {
     expect(cleanRefinementOutput('Here is the cleaned transcript: Hello there.')).toBe('Hello there.')
     expect(cleanRefinementOutput('Here\'s the refined output: Hello there.')).toBe('Hello there.')
+    expect(cleanRefinementOutput('Here\'s a polished version of the text, following your instructions:\nHello there.')).toBe('Hello there.')
   })
 
   it('does not force bullet formatting', () => {

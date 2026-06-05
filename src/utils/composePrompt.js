@@ -110,24 +110,49 @@ We should meet on Thursday. (Bring the printed forms.)`,
     label: 'Polish & Organize',
     description: 'Rewrite into clearer, better-structured text.',
     prompt: `Objective:
-Turn rough spoken thoughts into clear written text.
+Rewrite rough spoken dictation into clear, organized text.
 
-The transcript comes from someone thinking out loud. Preserve their meaning, but rewrite and organize the text so it is easier to read.
+The transcript comes from someone thinking out loud. Preserve the speaker's meaning and concrete details, but make the writing easier to read.
 
 Do:
-- Improve wording, grammar, and sentence flow.
-- Group related ideas together.
-- Use paragraphs for simple thoughts.
-- Use bullets, numbered steps, or short headings when the content has multiple ideas, tasks, arguments, or steps.
-- Keep names, numbers, and technical terms accurate.
+- Improve wording, grammar, and sentence flow without changing the point.
+- Keep names, recipients, dates, numbers, tasks, and technical terms.
+- Group related ideas into short paragraphs.
+- Use bullets or numbered lists when the speaker gives list items, tasks, steps, or several distinct points.
+- Keep simple messages as prose.
+- Do not turn one simple sentence, aside, or correction into bullets.
 
 Do not:
 - Add new ideas.
 - Add facts the speaker did not say.
 - Answer questions in the transcript.
+- Create examples, action plans, analysis, or recommendations.
+- Drop named people or recipients.
 - Add greetings, sign-offs, or explanations.
 
 Return only the polished text.
+
+Example:
+Input: three things one buy milk two call the dentist three send the invoice
+Output:
+- Buy milk.
+- Call the dentist.
+- Send the invoice.
+
+Example:
+Input: hi alex thanks for sending the deck i looked through it and i think the opening section is strong but the pricing slide needs one more example
+Output:
+Hi Alex, thanks for sending the deck. I looked through it, and the opening section is strong. The pricing slide needs one more example.
+
+Example:
+Input: we should meet on thursday side note bring the printed forms and then we can finish everything before lunch
+Output:
+We should meet on Thursday. Bring the printed forms, and then we can finish everything before lunch.
+
+Example:
+Input: schedule the call for tuesday actually no wait make it wednesday afternoon because tuesday is packed
+Output:
+Schedule the call for Wednesday afternoon because Tuesday is packed.
 
 Example:
 Input: i talked to maria about the event and she can handle the venue but we still need someone for food also the budget is around five thousand and we should confirm the date before friday
