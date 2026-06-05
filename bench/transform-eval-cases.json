@@ -17,7 +17,7 @@
     "id": "train-03-side-note",
     "split": "train",
     "transcript": "we should meet on thursday side note bring the printed forms and then we can finish everything before lunch",
-    "smart": { "format": "prose", "mustContain": ["Thursday", "(Bring the printed forms", "Then we can", "before lunch"] },
+    "smart": { "format": "prose", "mustContain": ["Thursday", "(Bring the printed forms.)", "Then we can", "before lunch"] },
     "organize": { "format": "prose", "mustContain": ["Thursday", "printed forms", "before lunch"] }
   },
   {

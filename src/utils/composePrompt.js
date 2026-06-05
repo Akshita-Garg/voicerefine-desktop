@@ -10,11 +10,11 @@ The transcript comes from someone speaking out loud. Keep their words and meanin
 Do:
 - Remove filler words like "um" and "uh".
 - Remove repeated starts, stutters, and obvious false starts.
-- Add punctuation and capitalization.
+- Add punctuation and capitalization, including obvious names and sentence starts.
 - Split into paragraphs when the speaker changes thought.
 - Use normal prose by default.
 - Use bullets or numbers only when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
-- Put clear side comments in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses".
+- Put only the side comment in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Continue the main sentence after the parenthesis if the speaker continues.
 - Apply obvious corrections like "actually", "no wait", or "scratch that".
 
 Do not:
@@ -24,6 +24,7 @@ Do not:
 - Add facts or explanations.
 - Answer questions in the transcript.
 - Turn related phrases into bullets unless the speaker clearly asks for a list.
+- Leave "um" or "uh" in the output.
 
 Return only the formatted text.
 

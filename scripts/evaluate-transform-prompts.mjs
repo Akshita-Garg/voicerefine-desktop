@@ -23,6 +23,7 @@ const split = args.get('split') ?? 'train';
 const presetArg = args.get('preset') ?? 'all';
 const gpu = args.get('gpu') ?? process.env.VOICEREFINE_LLAMA_GPU ?? 'auto';
 const limit = Number.parseInt(args.get('limit') ?? '', 10);
+const offset = Number.parseInt(args.get('offset') ?? '0', 10);
 const dryRun = args.has('dry-run');
 const resultsDir = path.resolve(appRoot, args.get('results-dir') ?? 'bench/results');
 const runLabel = args.get('label') ?? new Date().toISOString().replace(/[:.]/g, '-');
@@ -47,6 +48,7 @@ const {
 
 const allCases = JSON.parse(await fs.readFile(casesPath, 'utf8'))
   .filter(item => item.split === split)
+  .slice(Number.isInteger(offset) && offset > 0 ? offset : 0)
   .slice(0, Number.isInteger(limit) && limit > 0 ? limit : undefined);
 
 const presets = presetArg === 'all'
@@ -116,6 +118,17 @@ function evaluateOutput({ output, expectation }) {
   return { ok: failures.length === 0, failures, format };
 }
 
+function evaluatePresetOutput({ output, preset }) {
+  const failures = [];
+  if (preset === 'clarity') {
+    if (/\b(?:um|uh)\b/i.test(output)) failures.push('contains filler word');
+    if (detectFormat(output) === 'prose' && !/[.!?)]$/.test(output.trim())) {
+      failures.push('prose output lacks terminal punctuation');
+    }
+  }
+  return failures;
+}
+
 function expectationFor(item, preset) {
   return preset === 'clarity' ? item.smart : item.organize;
 }
@@ -173,6 +186,7 @@ async function writeResultsFile() {
       modelPath,
       casesPath,
       limit: Number.isInteger(limit) && limit > 0 ? limit : null,
+      offset: Number.isInteger(offset) && offset > 0 ? offset : 0,
     },
     results,
   }, null, 2));
@@ -204,11 +218,15 @@ try {
       const output = cleanRefinementOutput(rawOutput);
       const expectation = expectationFor(item, preset);
       const evaluation = evaluateOutput({ output, expectation });
+      const failures = [
+        ...evaluation.failures,
+        ...evaluatePresetOutput({ output, preset }),
+      ];
       const result = {
         id: item.id,
         preset,
-        ok: evaluation.ok,
-        failures: evaluation.failures,
+        ok: failures.length === 0,
+        failures,
         format: evaluation.format,
         elapsedMs: Math.round(performance.now() - startedAt),
         transcript: item.transcript,
