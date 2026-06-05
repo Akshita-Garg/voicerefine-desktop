@@ -96,6 +96,7 @@ describe('transform prompt presets', () => {
     expect(prompt).toContain('why are users leaving after signup')
     expect(prompt).toContain('new paragraph the second concern is privacy')
     expect(prompt).toContain('send it tomorrow scratch that send it today')
+    expect(prompt).toContain('meeting is on friday actually make that monday')
     expect(prompt).toContain('Output:')
   })
 

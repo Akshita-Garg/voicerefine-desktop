@@ -95,8 +95,14 @@ function cleanScratchThat(text) {
   }).trim();
 }
 
+function cleanActuallyMakeThat(text) {
+  return text.replace(/\b(on|for|at|from)\s+([a-z0-9]+),?\s+actually make that\s+(.+)$/i, (_match, preposition, _oldValue, replacement) => {
+    return `${preposition} ${replacement.trim()}`;
+  }).trim();
+}
+
 function finalizeTransformOutput(text) {
-  const cleaned = cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)));
+  const cleaned = cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))));
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
   if (bulletLines.length >= 2) return cleaned;

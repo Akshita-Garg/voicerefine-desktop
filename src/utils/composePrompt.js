@@ -85,6 +85,11 @@ Output:
 Send it today before five.
 
 Example:
+Input: tell nina the meeting is on friday actually make that monday because friday is a holiday
+Output:
+Tell Nina the meeting is on Monday because Friday is a holiday.
+
+Example:
 Input: we should meet on thursday side note bring the printed forms
 Output:
 We should meet on Thursday. (Bring the printed forms.)`,

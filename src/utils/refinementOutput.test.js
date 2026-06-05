@@ -53,4 +53,9 @@ describe('finalizeTransformOutput', () => {
     expect(finalizeTransformOutput('Send it to Rachel tomorrow. Scratch that send it to Rachel today before five.'))
       .toBe('Send it to Rachel today before five.')
   })
+
+  it('applies actually-make-that date corrections left in model output', () => {
+    expect(finalizeTransformOutput('Tell Sam the review is on Friday, actually make that Monday because Friday is a holiday.'))
+      .toBe('Tell Sam the review is on Monday because Friday is a holiday.')
+  })
 })
