@@ -48,4 +48,9 @@ describe('finalizeTransformOutput', () => {
     expect(finalizeTransformOutput('- One thing\n- Another thing'))
       .toBe('- One thing\n- Another thing')
   })
+
+  it('applies scratch-that corrections left in model output', () => {
+    expect(finalizeTransformOutput('Send it to Rachel tomorrow. Scratch that send it to Rachel today before five.'))
+      .toBe('Send it to Rachel today before five.')
+  })
 })

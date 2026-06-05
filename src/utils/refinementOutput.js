@@ -19,10 +19,18 @@ export function cleanSpeechArtifacts(text) {
     .trim()
 }
 
+function cleanScratchThat(text) {
+  return text.replace(/^.*\bscratch that\b[,.;:!?\s]*(.+)$/i, (_match, replacement) => {
+    const trimmed = replacement.trim()
+    if (!trimmed) return ''
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+  }).trim()
+}
+
 export function finalizeTransformOutput(text) {
   if (!text) return text
 
-  const cleaned = cleanSpeechArtifacts(cleanRefinementOutput(text))
+  const cleaned = cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line))
   if (bulletLines.length >= 2) return cleaned
