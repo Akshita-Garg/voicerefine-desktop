@@ -12,7 +12,8 @@ Do:
 - Remove repeated starts, stutters, and obvious false starts.
 - Add punctuation and capitalization.
 - Split into paragraphs when the speaker changes thought.
-- Use bullets or numbers only when the speaker clearly says a list, such as "first", "second", "one", "two", or "three things".
+- Use normal prose by default.
+- Use bullets or numbers only when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
 - Put clear side comments in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses".
 - Apply obvious corrections like "actually", "no wait", or "scratch that".
 
@@ -22,8 +23,14 @@ Do not:
 - Add headings.
 - Add facts or explanations.
 - Answer questions in the transcript.
+- Turn related phrases into bullets unless the speaker clearly asks for a list.
 
 Return only the formatted text.
+
+Example:
+Input: i am trying to understand what kind of changes i can make to the plan so it works better and gets closer to what i intended
+Output:
+I am trying to understand what kind of changes I can make to the plan so it works better and gets closer to what I intended.
 
 Example:
 Input: three things one buy milk two call the dentist three send the invoice
