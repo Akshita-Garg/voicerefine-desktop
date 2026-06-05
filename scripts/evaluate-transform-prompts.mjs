@@ -1,0 +1,209 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(__dirname, '..');
+
+const args = new Map();
+for (let i = 2; i < process.argv.length; i += 1) {
+  const arg = process.argv[i];
+  if (!arg.startsWith('--')) continue;
+  const [key, inlineValue] = arg.slice(2).split('=');
+  const nextValue = process.argv[i + 1]?.startsWith('--') ? undefined : process.argv[i + 1];
+  args.set(key, inlineValue ?? nextValue ?? true);
+  if (!inlineValue && nextValue) i += 1;
+}
+
+const modelPath = path.resolve(appRoot, args.get('model') ?? 'resources/models/gemma-3-1b-it-Q4_K_M.gguf');
+const casesPath = path.resolve(appRoot, args.get('cases') ?? 'bench/transform-eval-cases.json');
+const split = args.get('split') ?? 'train';
+const presetArg = args.get('preset') ?? 'all';
+const gpu = args.get('gpu') ?? process.env.VOICEREFINE_LLAMA_GPU ?? 'auto';
+const limit = Number.parseInt(args.get('limit') ?? '', 10);
+const dryRun = args.has('dry-run');
+
+function loadComposePromptModule(source) {
+  const transformed = source
+    .replace(/export const /g, 'const ')
+    .replace(/export function /g, 'function ');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${transformed}
+result = { TRANSFORM_PRESETS, DEFAULT_TRANSFORM_PRESET, normalizeTransformPreset, defaultPromptForPreset, composeTransformPrompt, composeShortcutTransformPrompt };`, context);
+  return context.result;
+}
+
+const composePromptSource = await fs.readFile(path.join(appRoot, 'src/utils/composePrompt.js'), 'utf8');
+const {
+  defaultPromptForPreset,
+  composeShortcutTransformPrompt,
+} = loadComposePromptModule(composePromptSource);
+
+const allCases = JSON.parse(await fs.readFile(casesPath, 'utf8'))
+  .filter(item => item.split === split)
+  .slice(0, Number.isInteger(limit) && limit > 0 ? limit : undefined);
+
+const presets = presetArg === 'all'
+  ? ['clarity', 'structure']
+  : [presetArg === 'smart' ? 'clarity' : presetArg === 'organize' ? 'structure' : presetArg];
+
+function wordCount(text) {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function calculateMaxTokens(transcript) {
+  return Math.min(1024, Math.max(128, Math.ceil(wordCount(transcript) * 2.0)));
+}
+
+function samplingFor(preset) {
+  if (preset === 'clarity') return { temperature: 0.65, topP: 0.9, topK: 48 };
+  return { temperature: 0.8, topP: 0.92, topK: 64 };
+}
+
+function cleanRefinementOutput(text) {
+  return text
+    .replace(/^```(?:\w+)?\s*/i, '')
+    .replace(/```$/i, '')
+    .replace(/^(final text|output|result)\s*:\s*/i, '')
+    .trim();
+}
+
+function includesLoose(text, expected) {
+  const normalize = value => value
+    .toLowerCase()
+    .replace(/\$5,000/g, 'five thousand')
+    .replace(/500/g, 'five hundred')
+    .replace(/400/g, 'four hundred')
+    .replace(/june 12(?:th)?/g, 'june twelfth')
+    .replace(/june 15(?:th)?/g, 'june fifteenth')
+    .replace(/[^a-z0-9/ ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalize(text).includes(normalize(expected));
+}
+
+function detectFormat(output) {
+  const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
+  if (bulletLines.length >= 2 && bulletLines.length >= Math.ceil(lines.length * 0.6)) return 'list';
+  return 'prose';
+}
+
+function evaluateOutput({ output, expectation }) {
+  const failures = [];
+  const format = detectFormat(output);
+  if (expectation.format && format !== expectation.format) {
+    failures.push(`format expected ${expectation.format}, got ${format}`);
+  }
+  for (const item of expectation.mustContain ?? []) {
+    if (!includesLoose(output, item)) failures.push(`missing "${item}"`);
+  }
+  for (const item of expectation.mustNotContain ?? []) {
+    if (includesLoose(output, item)) failures.push(`should not contain "${item}"`);
+  }
+  return { ok: failures.length === 0, failures, format };
+}
+
+function expectationFor(item, preset) {
+  return preset === 'clarity' ? item.smart : item.organize;
+}
+
+if (dryRun) {
+  console.log('[eval] dry run', { split, cases: allCases.length, presets, modelPath, gpu });
+  process.exit(0);
+}
+
+const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
+
+const setupStartedAt = performance.now();
+const llama = await getLlama({ gpu, maxThreads: 0 });
+const model = await llama.loadModel({ modelPath, gpuLayers: gpu ? 'auto' : 0 });
+let context;
+try {
+  context = await model.createContext({ contextSize: 2048, threads: 0, flashAttention: true });
+} catch {
+  context = await model.createContext({ contextSize: 2048, threads: 0, flashAttention: false });
+}
+const sequence = context.getSequence();
+
+console.log('[eval] model ready', {
+  split,
+  cases: allCases.length,
+  presets,
+  gpu,
+  gpuLayers: model.gpuLayers,
+  setupMs: Math.round(performance.now() - setupStartedAt),
+});
+
+const results = [];
+
+try {
+  for (const item of allCases) {
+    for (const preset of presets) {
+      await sequence.clearHistory();
+      const session = new LlamaChatSession({
+        contextSequence: sequence,
+        autoDisposeSequence: false,
+      });
+
+      const { user } = composeShortcutTransformPrompt({
+        prompt: defaultPromptForPreset(preset),
+        transcript: item.transcript,
+      });
+      const maxTokens = calculateMaxTokens(item.transcript);
+      const startedAt = performance.now();
+      const rawOutput = await session.prompt(user, {
+        maxTokens,
+        ...samplingFor(preset),
+      });
+      session.dispose?.({ disposeSequence: false });
+
+      const output = cleanRefinementOutput(rawOutput);
+      const expectation = expectationFor(item, preset);
+      const evaluation = evaluateOutput({ output, expectation });
+      const result = {
+        id: item.id,
+        preset,
+        ok: evaluation.ok,
+        failures: evaluation.failures,
+        format: evaluation.format,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        transcript: item.transcript,
+        output,
+      };
+      results.push(result);
+
+      const icon = result.ok ? 'PASS' : 'FAIL';
+      console.log(`[eval] ${icon} ${result.id} ${preset} ${result.elapsedMs}ms`);
+      if (!result.ok) {
+        console.log('  failures:', result.failures.join('; '));
+        console.log('  transcript:', result.transcript);
+        console.log('  output:', result.output.replace(/\n/g, '\\n'));
+      }
+    }
+  }
+} finally {
+  try {
+    sequence.dispose();
+    await context.dispose();
+    await model.dispose();
+    await llama.dispose();
+  } catch (err) {
+    console.warn('[eval] cleanup warning', err?.message ?? err);
+  }
+}
+
+const passed = results.filter(item => item.ok).length;
+const failed = results.length - passed;
+console.log('[eval] summary', {
+  split,
+  presets,
+  passed,
+  failed,
+  total: results.length,
+});
+
+if (failed > 0) process.exitCode = 1;

@@ -1,0 +1,247 @@
+[
+  {
+    "id": "train-01-ramble-prompting",
+    "split": "train",
+    "transcript": "so i am trying to understand um what kind of changes i can make to the plan like what kind of changes would make it work better and get closer to what i intended",
+    "smart": { "format": "prose", "mustContain": ["trying to understand", "changes"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["trying to understand", "work better"] }
+  },
+  {
+    "id": "train-02-explicit-list",
+    "split": "train",
+    "transcript": "three things one buy milk two call the dentist three send the invoice",
+    "smart": { "format": "list", "mustContain": ["Buy milk", "Call the dentist", "Send the invoice"] },
+    "organize": { "format": "list", "mustContain": ["Buy milk", "Call the dentist", "Send the invoice"] }
+  },
+  {
+    "id": "train-03-side-note",
+    "split": "train",
+    "transcript": "we should meet on thursday side note bring the printed forms and then we can finish everything before lunch",
+    "smart": { "format": "prose", "mustContain": ["Thursday", "(Bring the printed forms", "before lunch"] },
+    "organize": { "format": "prose", "mustContain": ["Thursday", "printed forms", "before lunch"] }
+  },
+  {
+    "id": "train-04-correction",
+    "split": "train",
+    "transcript": "let us schedule the call for tuesday actually no wait make it wednesday afternoon because tuesday is packed",
+    "smart": { "format": "prose", "mustContain": ["Wednesday afternoon"], "mustNotContain": ["Tuesday afternoon"] },
+    "organize": { "format": "prose", "mustContain": ["Wednesday afternoon", "Tuesday is packed"] }
+  },
+  {
+    "id": "train-05-email-thought",
+    "split": "train",
+    "transcript": "hi alex um thanks for sending the deck i looked through it and i think the opening section is strong but the pricing slide needs one more example",
+    "smart": { "format": "prose", "mustContain": ["Hi Alex", "pricing slide", "one more example"] },
+    "organize": { "format": "prose", "mustContain": ["Alex", "opening section", "pricing slide"] }
+  },
+  {
+    "id": "train-06-meeting-note",
+    "split": "train",
+    "transcript": "met with maria about the event she can handle the venue we still need someone for food and the budget is around five thousand",
+    "smart": { "format": "prose", "mustContain": ["Maria", "venue", "food", "five thousand"] },
+    "organize": { "format": "prose", "mustContain": ["Maria", "venue", "food", "$5,000"] }
+  },
+  {
+    "id": "train-07-no-bullets-keywords",
+    "split": "train",
+    "transcript": "the first version felt too formal and the second version felt too casual so i think we need something in the middle",
+    "smart": { "format": "prose", "mustContain": ["first version", "second version", "middle"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["formal", "casual", "middle"] }
+  },
+  {
+    "id": "train-08-task-list",
+    "split": "train",
+    "transcript": "can you make a list first book the room second invite the team third prepare the agenda",
+    "smart": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"] },
+    "organize": { "format": "list", "mustContain": ["Book the room", "Invite the team", "Prepare the agenda"] }
+  },
+  {
+    "id": "train-09-technical-terms",
+    "split": "train",
+    "transcript": "we should keep the api endpoint at slash v one slash audio slash transcriptions because changing it now could break the integration",
+    "smart": { "format": "prose", "mustContain": ["API endpoint", "v1/audio/transcriptions", "integration"] },
+    "organize": { "format": "prose", "mustContain": ["API endpoint", "v1/audio/transcriptions", "integration"] }
+  },
+  {
+    "id": "train-10-question-content",
+    "split": "train",
+    "transcript": "i want to ask the client why did the timeline move and whether the launch date is still realistic",
+    "smart": { "format": "prose", "mustContain": ["ask the client", "why", "launch date"], "mustNotContain": ["The timeline moved"] },
+    "organize": { "format": "prose", "mustContain": ["ask the client", "timeline", "launch date"] }
+  },
+  {
+    "id": "train-11-paragraph-shift",
+    "split": "train",
+    "transcript": "the design looks good overall i like the spacing and the colors new thought we should still test it on a smaller screen before we ship",
+    "smart": { "format": "prose", "mustContain": ["design looks good", "smaller screen"] },
+    "organize": { "format": "prose", "mustContain": ["design", "smaller screen", "ship"] }
+  },
+  {
+    "id": "train-12-no-fancy",
+    "split": "train",
+    "transcript": "i do not want this to sound fancy i just want it to sound like me but without all the ums and repeated parts",
+    "smart": { "format": "prose", "mustContain": ["sound like me", "without"], "mustNotContain": ["elevated", "polished"] },
+    "organize": { "format": "prose", "mustContain": ["sound like me", "repeated parts"] }
+  },
+  {
+    "id": "train-13-dates",
+    "split": "train",
+    "transcript": "move the workshop from june twelfth to june fifteenth and tell priya that the morning slot is better",
+    "smart": { "format": "prose", "mustContain": ["June 12", "June 15", "Priya", "morning slot"] },
+    "organize": { "format": "prose", "mustContain": ["June 12", "June 15", "Priya"] }
+  },
+  {
+    "id": "train-14-repeated-start",
+    "split": "train",
+    "transcript": "i think i think the issue is that the form is too long and people are dropping off before they reach the payment step",
+    "smart": { "format": "prose", "mustContain": ["form is too long", "payment step"], "mustNotContain": ["I think I think"] },
+    "organize": { "format": "prose", "mustContain": ["form", "too long", "payment step"] }
+  },
+  {
+    "id": "train-15-brackets",
+    "split": "train",
+    "transcript": "the quote is fine in brackets check whether this includes tax and then send it to finance",
+    "smart": { "format": "prose", "mustContain": ["quote is fine", "(check whether this includes tax)", "finance"] },
+    "organize": { "format": "prose", "mustContain": ["quote", "tax", "finance"] }
+  },
+  {
+    "id": "train-16-short-message",
+    "split": "train",
+    "transcript": "running five minutes late please start without me",
+    "smart": { "format": "prose", "mustContain": ["Running five minutes late", "start without me"] },
+    "organize": { "format": "prose", "mustContain": ["Running five minutes late", "start without me"] }
+  },
+  {
+    "id": "train-17-longer-idea",
+    "split": "train",
+    "transcript": "i think the onboarding should ask fewer questions at the beginning because people are not ready to configure everything before they have seen the value",
+    "smart": { "format": "prose", "mustContain": ["onboarding", "fewer questions", "seen the value"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["onboarding", "fewer questions", "value"] }
+  },
+  {
+    "id": "train-18-explicit-numbered",
+    "split": "train",
+    "transcript": "numbered list one define the scope two assign owners three decide the deadline",
+    "smart": { "format": "list", "mustContain": ["Define the scope", "Assign owners", "Decide the deadline"] },
+    "organize": { "format": "list", "mustContain": ["Define the scope", "Assign owners", "Decide the deadline"] }
+  },
+  {
+    "id": "train-19-do-not-answer",
+    "split": "train",
+    "transcript": "write this down why are users leaving after signup and what can we ask them in the survey",
+    "smart": { "format": "prose", "mustContain": ["Why are users leaving", "what can we ask"], "mustNotContain": ["Users are leaving"] },
+    "organize": { "format": "prose", "mustContain": ["users leaving", "survey"] }
+  },
+  {
+    "id": "train-20-casual-note",
+    "split": "train",
+    "transcript": "okay so this is probably fine but i want to sleep on it and check once more in the morning",
+    "smart": { "format": "prose", "mustContain": ["probably fine", "sleep on it", "morning"] },
+    "organize": { "format": "prose", "mustContain": ["probably fine", "check once more"] }
+  },
+  {
+    "id": "train-21-product-feedback",
+    "split": "train",
+    "transcript": "the search works but it feels slow when there are more than a few hundred results and the empty state is kind of confusing",
+    "smart": { "format": "prose", "mustContain": ["search works", "feels slow", "empty state"] },
+    "organize": { "format": "prose", "mustContain": ["search", "slow", "empty state"] }
+  },
+  {
+    "id": "train-22-voice-command-like",
+    "split": "train",
+    "transcript": "new paragraph the second concern is privacy because users need to know where their data goes",
+    "smart": { "format": "prose", "mustContain": ["second concern", "privacy", "data goes"] },
+    "organize": { "format": "prose", "mustContain": ["privacy", "data"] }
+  },
+  {
+    "id": "train-23-scratch-that",
+    "split": "train",
+    "transcript": "send it to rachel tomorrow scratch that send it to rachel today before five",
+    "smart": { "format": "prose", "mustContain": ["Rachel", "today", "before five"], "mustNotContain": ["tomorrow"] },
+    "organize": { "format": "prose", "mustContain": ["Rachel", "today", "before five"], "mustNotContain": ["tomorrow"] }
+  },
+  {
+    "id": "train-24-multiple-thoughts",
+    "split": "train",
+    "transcript": "we can launch with the simple version first the advanced filters can come later because the main thing people need right now is faster export",
+    "smart": { "format": "prose", "mustContain": ["simple version", "advanced filters", "faster export"] },
+    "organize": { "format": "prose", "mustContain": ["simple version", "advanced filters", "faster export"] }
+  },
+  {
+    "id": "train-25-light-ramble",
+    "split": "train",
+    "transcript": "i guess the main thing is i want the app to feel quick and predictable and not like i am waiting for a complicated process",
+    "smart": { "format": "prose", "mustContain": ["quick and predictable", "complicated process"] },
+    "organize": { "format": "prose", "mustContain": ["quick", "predictable", "waiting"] }
+  },
+  {
+    "id": "holdout-01-prose-not-list",
+    "split": "holdout",
+    "transcript": "i am thinking through the pricing and the free tier might be too generous but the paid plan still needs to feel simple",
+    "smart": { "format": "prose", "mustContain": ["pricing", "free tier", "paid plan"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["pricing", "free tier", "paid plan"] }
+  },
+  {
+    "id": "holdout-02-explicit-list",
+    "split": "holdout",
+    "transcript": "make this a list first confirm the address second print the labels third drop the package by four",
+    "smart": { "format": "list", "mustContain": ["Confirm the address", "Print the labels", "Drop the package"] },
+    "organize": { "format": "list", "mustContain": ["Confirm the address", "Print the labels", "Drop the package"] }
+  },
+  {
+    "id": "holdout-03-correction",
+    "split": "holdout",
+    "transcript": "tell sam the review is on friday actually make that monday because friday is a holiday",
+    "smart": { "format": "prose", "mustContain": ["Sam", "Monday", "Friday is a holiday"], "mustNotContain": ["review is on Friday."] },
+    "organize": { "format": "prose", "mustContain": ["Sam", "Monday", "holiday"] }
+  },
+  {
+    "id": "holdout-04-side-note",
+    "split": "holdout",
+    "transcript": "the candidate looks strong side note ask about remote availability before we move to the final round",
+    "smart": { "format": "prose", "mustContain": ["candidate looks strong", "(ask about remote availability", "final round"] },
+    "organize": { "format": "prose", "mustContain": ["candidate", "remote availability", "final round"] }
+  },
+  {
+    "id": "holdout-05-technical",
+    "split": "holdout",
+    "transcript": "the webhook should retry on five hundred errors but not on four hundred errors because those are client issues",
+    "smart": { "format": "prose", "mustContain": ["webhook", "500 errors", "400 errors", "client issues"] },
+    "organize": { "format": "prose", "mustContain": ["webhook", "500", "400"] }
+  },
+  {
+    "id": "holdout-06-short",
+    "split": "holdout",
+    "transcript": "please send the revised contract to nina before lunch",
+    "smart": { "format": "prose", "mustContain": ["revised contract", "Nina", "before lunch"] },
+    "organize": { "format": "prose", "mustContain": ["revised contract", "Nina"] }
+  },
+  {
+    "id": "holdout-07-question",
+    "split": "holdout",
+    "transcript": "note to self why does the checkout page feel slower on mobile than desktop",
+    "smart": { "format": "prose", "mustContain": ["Note to self", "why", "mobile", "desktop"], "mustNotContain": ["because"] },
+    "organize": { "format": "prose", "mustContain": ["checkout page", "mobile", "desktop"] }
+  },
+  {
+    "id": "holdout-08-paragraphs",
+    "split": "holdout",
+    "transcript": "the first section should explain the problem new thought the second section should show the result with one concrete example",
+    "smart": { "format": "prose", "mustContain": ["first section", "problem", "second section", "concrete example"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["problem", "result", "concrete example"] }
+  },
+  {
+    "id": "holdout-09-names",
+    "split": "holdout",
+    "transcript": "jordan said the legal team is okay with the terms but finance still needs to approve the payment schedule",
+    "smart": { "format": "prose", "mustContain": ["Jordan", "legal team", "finance", "payment schedule"] },
+    "organize": { "format": "prose", "mustContain": ["Jordan", "legal", "finance"] }
+  },
+  {
+    "id": "holdout-10-ramble",
+    "split": "holdout",
+    "transcript": "i am not sure if the button should say continue or next because continue feels more natural but next is shorter",
+    "smart": { "format": "prose", "mustContain": ["button", "continue", "next"], "mustNotContain": ["- "] },
+    "organize": { "format": "prose", "mustContain": ["continue", "next", "shorter"] }
+  }
+]
