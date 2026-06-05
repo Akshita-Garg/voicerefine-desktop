@@ -22,10 +22,14 @@ describe('calculateShortcutMaxTokens', () => {
     expect(calculateShortcutMaxTokens('short transcript', { intent: 'clean' })).toBe(128)
   })
 
+  it('uses a smaller transform minimum for short shortcut requests', () => {
+    expect(calculateShortcutMaxTokens('short transcript', { intent: 'transform' })).toBe(64)
+  })
+
   it('gives clean mode more room to preserve wording', () => {
     const transcript = Array.from({ length: 100 }, () => 'word').join(' ')
     expect(calculateShortcutMaxTokens(transcript, { intent: 'clean' })).toBe(221)
-    expect(calculateShortcutMaxTokens(transcript, { intent: 'compose' })).toBe(180)
+    expect(calculateShortcutMaxTokens(transcript, { intent: 'transform' })).toBe(180)
   })
 
   it('supports roughly three-minute transcripts without forcing heavy compression', () => {

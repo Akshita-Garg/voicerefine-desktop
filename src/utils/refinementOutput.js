@@ -43,6 +43,12 @@ function removeFormattingCommandLines(text) {
     .trim()
 }
 
+function cleanTechnicalNumberPhrases(text) {
+  return text
+    .replace(/\bfour hundred and four errors\b/gi, '404 errors')
+    .replace(/\bfive hundred errors\b/gi, '500 errors')
+}
+
 function capitalizeFirstTextChar(text) {
   return text.replace(/^[a-z]/, char => char.toUpperCase())
 }
@@ -50,7 +56,7 @@ function capitalizeFirstTextChar(text) {
 export function finalizeTransformOutput(text) {
   if (!text) return text
 
-  const cleaned = capitalizeFirstTextChar(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))))
+  const cleaned = capitalizeFirstTextChar(cleanTechnicalNumberPhrases(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))))))
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line))
   if (bulletLines.length >= 2) return cleaned

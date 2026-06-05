@@ -60,6 +60,11 @@ describe('normalizeTranscriptForTransform', () => {
     expect(normalizeTranscriptForTransform('the quote is fine in brackets check whether this includes tax'))
       .toBe('the quote is fine side note check whether this includes tax')
   })
+
+  it('normalizes common spoken error codes before prompting', () => {
+    expect(normalizeTranscriptForTransform('log four hundred and four errors separately from five hundred errors'))
+      .toBe('log 404 errors separately from 500 errors')
+  })
 })
 
 describe('composeShortcutTransformPrompt', () => {
@@ -121,14 +126,13 @@ describe('transform prompt presets', () => {
 
   it('lets polish and organize rewrite and structure when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('Rewrite rough spoken dictation into clear, organized text.')
-    expect(prompt).toContain('The transcript comes from someone thinking out loud.')
-    expect(prompt).toContain('Use bullets or numbered lists')
-    expect(prompt).toContain('Do not turn one simple sentence, aside, or correction into bullets.')
-    expect(prompt).toContain('Treat phrases like "make a list"')
-    expect(prompt).toContain('slash v one slash audio')
-    expect(prompt).toContain('Add facts the speaker did not say.')
-    expect(prompt).toContain('Create examples, action plans, analysis, or recommendations.')
+    expect(prompt).toContain('Lightly rewrite and organize spoken dictation into clear text.')
+    expect(prompt).toContain('preserve every concrete idea')
+    expect(prompt).toContain('Use bullets only for explicit lists')
+    expect(prompt).toContain('Use prose for one thought, one message, one contrast, or one correction.')
+    expect(prompt).toContain('Treat "make a list"')
+    expect(prompt).toContain('four hundred and four errors')
+    expect(prompt).toContain('Add new facts, examples, analysis, recommendations')
     expect(prompt).toContain('Output:')
   })
 })

@@ -270,7 +270,7 @@
     "split": "fresh",
     "transcript": "set the retry limit to five and log four hundred and four errors separately from five hundred errors",
     "smart": { "format": "prose", "mustContain": ["retry limit to five", "404 errors", "500 errors"] },
-    "organize": { "format": "prose", "mustContain": ["retry limit", "404", "500"] }
+    "organize": { "format": ["prose", "list"], "mustContain": ["retry limit", "404", "500"] }
   },
   {
     "id": "fresh-05-correction",

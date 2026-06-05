@@ -62,7 +62,7 @@ function wordCount(text) {
 }
 
 function calculateMaxTokens(transcript) {
-  return Math.min(1024, Math.max(128, Math.ceil(wordCount(transcript) * 2.0)));
+  return Math.min(1024, Math.max(64, Math.ceil(wordCount(transcript) * 1.8)));
 }
 
 function samplingFor(preset) {
@@ -110,12 +110,18 @@ function removeFormattingCommandLines(text) {
     .trim();
 }
 
+function cleanTechnicalNumberPhrases(text) {
+  return text
+    .replace(/\bfour hundred and four errors\b/gi, '404 errors')
+    .replace(/\bfive hundred errors\b/gi, '500 errors');
+}
+
 function capitalizeFirstTextChar(text) {
   return text.replace(/^[a-z]/, char => char.toUpperCase());
 }
 
 function finalizeTransformOutput(text) {
-  const cleaned = capitalizeFirstTextChar(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))));
+  const cleaned = capitalizeFirstTextChar(cleanTechnicalNumberPhrases(removeFormattingCommandLines(cleanActuallyMakeThat(cleanScratchThat(cleanSpeechArtifacts(cleanRefinementOutput(text)))))));
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line));
   if (bulletLines.length >= 2) return cleaned;

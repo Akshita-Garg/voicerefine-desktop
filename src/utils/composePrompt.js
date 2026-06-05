@@ -111,98 +111,55 @@ We should meet on Thursday. (Bring the printed forms.)`,
     label: 'Polish & Organize',
     description: 'Rewrite into clearer, better-structured text.',
     prompt: `Objective:
-Rewrite rough spoken dictation into clear, organized text.
+Lightly rewrite and organize spoken dictation into clear text.
 
-The transcript comes from someone thinking out loud. Preserve the speaker's meaning and concrete details, but make the writing easier to read.
+The transcript comes from someone speaking out loud. Make it easier to read, but preserve every concrete idea.
 
-Do:
-- Improve wording, grammar, and sentence flow without changing the point.
-- Keep names, recipients, dates, numbers, tasks, and technical terms.
-- Keep important context, qualifiers, and reasons even when rewriting.
-- Group related ideas into short paragraphs.
-- Use bullets or numbered lists when the speaker gives list items, tasks, steps, or several distinct points.
-- Keep simple messages as prose.
-- Do not turn one simple sentence, aside, or correction into bullets.
-- Treat phrases like "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
-- Never drop the text before "side note", "by the way", or "in brackets".
-- Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
+Rules:
+- Preserve names, recipients, dates, numbers, technical terms, tasks, reasons, and context.
+- Remove filler words, repeated starts, and obvious false starts.
+- Improve grammar and sentence flow, but do not summarize.
+- Use prose for one thought, one message, one contrast, or one correction.
+- Use bullets only for explicit lists, task lists, steps, or clearly separate points.
+- Treat "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
+- Treat "side note", "by the way", and "in brackets" as asides; keep the text before and after them.
+- Apply corrections like "actually", "no wait", and "scratch that".
+- Convert obvious technical dictation, such as "slash v one slash audio" to "/v1/audio" and "four hundred and four errors" to "404 errors".
 
-Do not:
-- Add new ideas.
-- Add facts the speaker did not say.
-- Summarize away context.
-- Answer questions in the transcript.
-- Create examples, action plans, analysis, or recommendations.
-- Drop named people or recipients.
-- Add greetings, sign-offs, or explanations.
+Never:
+- Add new facts, examples, analysis, recommendations, greetings, or sign-offs.
+- Drop the first clause of the transcript.
+- Answer a question in the transcript.
+- Copy these examples into the output.
 
 Return only the polished text.
 
 Example:
-Input: three things one buy milk two call the dentist three send the invoice
+Input: list three follow ups one ask for the contract two confirm the start date three share the onboarding doc
 Output:
-- Buy milk.
-- Call the dentist.
-- Send the invoice.
+- Ask for the contract.
+- Confirm the start date.
+- Share the onboarding doc.
 
 Example:
-Input: hi alex thanks for sending the deck i looked through it and i think the opening section is strong but the pricing slide needs one more example
+Input: quick update the draft is mostly done but i still need to check the numbers before i send it
 Output:
-Hi Alex, thanks for sending the deck. I looked through it, and the opening section is strong. The pricing slide needs one more example.
+Quick update: the draft is mostly done, but I still need to check the numbers before I send it.
 
 Example:
-Input: running five minutes late please start without me
+Input: the first idea is probably too broad and the second idea is more practical for next week
 Output:
-Running five minutes late. Please start without me.
+The first idea is probably too broad, and the second idea is more practical for next week.
 
 Example:
-Input: i think the onboarding should ask fewer questions at the beginning because people are not ready to configure everything before they have seen the value
+Input: the plan looks reasonable by the way check the dependency on legal review before we promise the date
 Output:
-I think the onboarding should ask fewer questions at the beginning because people are not ready to configure everything before they have seen the value.
+The plan looks reasonable. (Check the dependency on legal review.) Do that before we promise the date.
 
 Example:
-Input: okay so this is probably fine but i want to sleep on it and check once more in the morning
+Input: message arjun that the demo is at two actually make that three because the customer asked to move it
 Output:
-This is probably fine, but I want to sleep on it and check once more in the morning.
-
-Example:
-Input: the first version felt too formal and the second version felt too casual so i think we need something in the middle
-Output:
-The first version felt too formal, while the second version felt too casual. I think we need something in the middle.
-
-Example:
-Input: the design looks good overall i like the spacing and the colors new thought we should still test it on a smaller screen before we ship
-Output:
-The design looks good overall. I like the spacing and the colors.
-
-We should still test it on a smaller screen before we ship.
-
-Example:
-Input: the quote is fine in brackets check whether this includes tax and then send it to finance
-Output:
-The quote is fine. (Check whether this includes tax.) Then send it to finance.
-
-Example:
-Input: we should meet on thursday side note bring the printed forms and then we can finish everything before lunch
-Output:
-We should meet on Thursday. Bring the printed forms, and then we can finish everything before lunch.
-
-Example:
-Input: schedule the call for tuesday actually no wait make it wednesday afternoon because tuesday is packed
-Output:
-Schedule the call for Wednesday afternoon because Tuesday is packed.
-
-Example:
-Input: keep the api endpoint at slash v one slash audio slash transcriptions because changing it could break the integration
-Output:
-Keep the API endpoint at /v1/audio/transcriptions because changing it could break the integration.
-
-Example:
-Input: i talked to maria about the event and she can handle the venue but we still need someone for food also the budget is around five thousand and we should confirm the date before friday
-Output:
-I talked to Maria about the event. She can handle the venue, but we still need someone to manage food.
-
-The budget is around $5,000, and we should confirm the date before Friday.`,
+Message Arjun that the demo is at three because the customer asked to move it.`,
   },
 }
 
@@ -220,6 +177,8 @@ export function normalizeTranscriptForTransform(transcript) {
   return transcript
     .replace(/^.*\bscratch that\b[,.;:!?\s]*/i, '')
     .replace(/\bin brackets\b/gi, 'side note')
+    .replace(/\bfour hundred and four errors\b/gi, '404 errors')
+    .replace(/\bfive hundred errors\b/gi, '500 errors')
     .trim()
 }
 

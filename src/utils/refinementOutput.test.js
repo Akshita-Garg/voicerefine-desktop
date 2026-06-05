@@ -55,6 +55,11 @@ describe('finalizeTransformOutput', () => {
       .toBe('- Book the room.\n- Invite the team.')
   })
 
+  it('normalizes common technical error-code phrases', () => {
+    expect(finalizeTransformOutput('Log four hundred and four errors separately from five hundred errors.'))
+      .toBe('Log 404 errors separately from 500 errors.')
+  })
+
   it('applies scratch-that corrections left in model output', () => {
     expect(finalizeTransformOutput('Send it to Rachel tomorrow. Scratch that send it to Rachel today before five.'))
       .toBe('Send it to Rachel today before five.')
