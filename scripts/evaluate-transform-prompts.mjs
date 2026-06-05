@@ -26,6 +26,7 @@ const limit = Number.parseInt(args.get('limit') ?? '', 10);
 const dryRun = args.has('dry-run');
 const resultsDir = path.resolve(appRoot, args.get('results-dir') ?? 'bench/results');
 const runLabel = args.get('label') ?? new Date().toISOString().replace(/[:.]/g, '-');
+const disposeNative = args.has('dispose');
 
 function loadComposePromptModule(source) {
   const transformed = source
@@ -51,6 +52,8 @@ const allCases = JSON.parse(await fs.readFile(casesPath, 'utf8'))
 const presets = presetArg === 'all'
   ? ['clarity', 'structure']
   : [presetArg === 'smart' ? 'clarity' : presetArg === 'organize' ? 'structure' : presetArg];
+const safePreset = presets.join('-').replace(/[^a-z0-9_-]+/gi, '-');
+const resultsPath = path.join(resultsDir, `${runLabel}-${split}-${safePreset}.json`);
 
 function wordCount(text) {
   return text.split(/\s+/).filter(Boolean).length;
@@ -74,6 +77,8 @@ function cleanRefinementOutput(text) {
 }
 
 function includesLoose(text, expected) {
+  if (!/[a-z0-9]/i.test(expected)) return text.includes(expected);
+
   const normalize = value => value
     .toLowerCase()
     .replace(/\$5,000/g, 'five thousand')
@@ -84,7 +89,9 @@ function includesLoose(text, expected) {
     .replace(/[^a-z0-9/ ]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return normalize(text).includes(normalize(expected));
+  const normalizedExpected = normalize(expected);
+  if (!normalizedExpected) return text.includes(expected);
+  return normalize(text).includes(normalizedExpected);
 }
 
 function detectFormat(output) {
@@ -114,9 +121,11 @@ function expectationFor(item, preset) {
 }
 
 if (dryRun) {
-  console.log('[eval] dry run', { split, cases: allCases.length, presets, modelPath, gpu, resultsDir, runLabel });
+  console.log('[eval] dry run', { split, cases: allCases.length, presets, modelPath, gpu, resultsDir, runLabel, resultsPath });
   process.exit(0);
 }
+
+await fs.mkdir(resultsDir, { recursive: true });
 
 const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
 
@@ -142,6 +151,34 @@ console.log('[eval] model ready', {
 
 const results = [];
 const runStartedAt = performance.now();
+
+async function writeResultsFile() {
+  const passed = results.filter(item => item.ok).length;
+  const failed = results.length - passed;
+  const summary = {
+    split,
+    presets,
+    passed,
+    failed,
+    total: results.length,
+    totalMs: Math.round(performance.now() - runStartedAt),
+  };
+
+  await fs.writeFile(resultsPath, JSON.stringify({
+    summary,
+    config: {
+      split,
+      presets,
+      gpu,
+      modelPath,
+      casesPath,
+      limit: Number.isInteger(limit) && limit > 0 ? limit : null,
+    },
+    results,
+  }, null, 2));
+
+  return summary;
+}
 
 try {
   for (const item of allCases) {
@@ -178,6 +215,7 @@ try {
         output,
       };
       results.push(result);
+      await writeResultsFile();
 
       const icon = result.ok ? 'PASS' : 'FAIL';
       console.log(`[eval] ${icon} ${result.id} ${preset} ${result.elapsedMs}ms`);
@@ -190,43 +228,19 @@ try {
   }
 } finally {
   try {
-    sequence.dispose();
-    await context.dispose();
-    await model.dispose();
-    await llama.dispose();
+    if (disposeNative) {
+      sequence.dispose();
+      await context.dispose();
+      await model.dispose();
+      await llama.dispose();
+    }
   } catch (err) {
     console.warn('[eval] cleanup warning', err?.message ?? err);
   }
 }
 
-const passed = results.filter(item => item.ok).length;
-const failed = results.length - passed;
-const summary = {
-  split,
-  presets,
-  passed,
-  failed,
-  total: results.length,
-  totalMs: Math.round(performance.now() - runStartedAt),
-};
-
-await fs.mkdir(resultsDir, { recursive: true });
-const safePreset = presets.join('-').replace(/[^a-z0-9_-]+/gi, '-');
-const resultsPath = path.join(resultsDir, `${runLabel}-${split}-${safePreset}.json`);
-await fs.writeFile(resultsPath, JSON.stringify({
-  summary,
-  config: {
-    split,
-    presets,
-    gpu,
-    modelPath,
-    casesPath,
-    limit: Number.isInteger(limit) && limit > 0 ? limit : null,
-  },
-  results,
-}, null, 2));
-
+const summary = await writeResultsFile();
 console.log('[eval] summary', summary);
 console.log('[eval] results written', resultsPath);
 
-if (failed > 0) process.exitCode = 1;
+if (summary.failed > 0) process.exitCode = 1;
