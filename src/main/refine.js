@@ -16,6 +16,7 @@ let unloadTimer = null;
 let activeRefinements = 0;
 let refinementQueue = Promise.resolve();
 let activeGpuMode = null;
+let loggedChatWrapperName = null;
 
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -62,6 +63,19 @@ async function disposeRuntime() {
   }
 
   activeGpuMode = null;
+  loggedChatWrapperName = null;
+}
+
+function logChatWrapper(session) {
+  const wrapper = session?.chatWrapper;
+  const wrapperName = wrapper?.wrapperName ?? 'unknown';
+  if (loggedChatWrapperName === wrapperName) return;
+
+  loggedChatWrapperName = wrapperName;
+  console.log('[refine] Chat wrapper selected', {
+    wrapperName,
+    supportsSystemMessages: wrapper?.settings?.supportsSystemMessages ?? null,
+  });
 }
 
 async function loadModelWithGpuMode(gpu) {
@@ -223,6 +237,7 @@ async function runRefinement(systemMessage, userMessage, options = {}) {
       contextSequence: currentSequence,
       autoDisposeSequence: false,
     });
+    logChatWrapper(session);
 
     const prompt = systemMessage?.trim()
       ? `${systemMessage.trim()}\n\n${userMessage}`
