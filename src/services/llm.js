@@ -39,7 +39,7 @@ function transformSamplingFor({ preset }) {
 }
 
 /**
- * Send the composed { system, user } prompt to the configured LLM provider
+ * Send the composed prompt to the configured LLM provider
  * and return the refined text.
  *
  * Throws with a specific, user-readable message for auth failures, rate limits,
@@ -75,7 +75,7 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
       body: JSON.stringify({
         model: config.model,
         messages: [
-          { role: 'system', content: system },
+          ...(system?.trim() ? [{ role: 'system', content: system }] : []),
           { role: 'user', content: user },
         ],
         stream: false,

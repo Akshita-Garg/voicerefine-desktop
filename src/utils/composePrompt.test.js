@@ -20,13 +20,15 @@ describe('composeTransformPrompt', () => {
     expect(typeof user).toBe('string')
   })
 
-  it('places the transcript inside triple-quote delimiters', () => {
-    const { user } = composeTransformPrompt({
+  it('uses a plain Gemma-friendly transcript block', () => {
+    const { system, user } = composeTransformPrompt({
       prompt: defaultPromptForPreset(DEFAULT_TRANSFORM_PRESET),
       transcript,
     })
-    expect(user).toContain('"""')
+    expect(system).toBe('')
+    expect(user).toContain('Transcript:')
     expect(user).toContain(transcript)
+    expect(user).toContain('Final text:')
   })
 
   it('throws when the transform prompt is empty', () => {
@@ -58,10 +60,10 @@ describe('composeShortcutTransformPrompt', () => {
       transcript,
     })
 
-    expect(shortcut.system.length).toBeLessThan(full.system.length)
+    expect(shortcut.system).toBe('')
     expect(shortcut.user.length).toBeLessThan(full.user.length)
     expect(shortcut.user).toContain(transcript)
-    expect(shortcut.user).toContain('Return only the output.')
+    expect(shortcut.user).toContain('Return only the final text.')
   })
 
   it('throws when the shortcut transform prompt is empty', () => {
@@ -73,16 +75,17 @@ describe('composeShortcutTransformPrompt', () => {
 describe('transform prompt presets', () => {
   it('keeps smart format focused on faithful formatting', () => {
     const prompt = defaultPromptForPreset('clarity')
-    expect(prompt).toContain('Preserve the speaker\'s vocabulary, meaning, order, and tone.')
-    expect(prompt).toContain('Format clear list intent as bullets or numbered steps')
-    expect(prompt).toContain('Put clear side thoughts in parentheses')
-    expect(prompt).toContain('Do not rewrite for style')
+    expect(prompt).toContain('Format dictated speech without rewriting the speaker.')
+    expect(prompt).toContain('Keep the speaker\'s vocabulary and meaning.')
+    expect(prompt).toContain('Output:')
+    expect(prompt).toContain('Do not make the language fancier.')
   })
 
   it('lets polish and organize rewrite and structure when helpful', () => {
     const prompt = defaultPromptForPreset('structure')
-    expect(prompt).toContain('Improve wording, grammar, sentence flow, and readability.')
-    expect(prompt).toContain('Group related ideas together')
-    expect(prompt).toContain('Use paragraphs, bullets, numbered steps, or short headings')
+    expect(prompt).toContain('Rewrite dictated speech into clear, usable text.')
+    expect(prompt).toContain('Improve wording, grammar, and flow.')
+    expect(prompt).toContain('Use bullets, numbered steps, or short headings')
+    expect(prompt).toContain('Output:')
   })
 })
