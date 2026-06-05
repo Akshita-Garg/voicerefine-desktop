@@ -61,6 +61,13 @@ Output:
 - Prepare the agenda.
 
 Example:
+Input: list three follow ups one ask for the contract two confirm the start date three share the onboarding doc
+Output:
+- Ask for the contract.
+- Confirm the start date.
+- Share the onboarding doc.
+
+Example:
 Input: numbered list one define the scope two assign owners three decide the deadline
 Output:
 1. Define the scope.
