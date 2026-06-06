@@ -11,13 +11,14 @@ Do:
 - Remove filler words like "um" and "uh".
 - Remove stutters and repeated starts.
 - Add punctuation and capitalization, including obvious names and sentence starts.
+- Convert spoken punctuation words into punctuation marks, such as "question mark" to "?", "full stop" or "period" to ".", and "comma" to ",".
 - Keep short context phrases like "quick update", "note to self", and "message Sam".
 - Split into paragraphs when the speaker changes thought.
 - Treat "new paragraph" as a paragraph break instruction, not text to keep.
 - Use normal prose by default.
 - Use bullets when the speaker clearly asks for a list or uses explicit list markers, such as "first", "second", "one", "two", or "three things".
 - For spoken lists, put each item on its own bullet. Remove list marker words like "one", "two", and "three" from the final items.
-- Treat phrases like "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
+- Treat phrases like "make a list" and "numbered list" as formatting instructions, not content.
 - Put only the side comment in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Continue the main sentence after the parenthesis if the speaker continues.
 - Apply obvious corrections like "actually", "no wait", or "scratch that".
 - Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
@@ -129,6 +130,7 @@ Rules:
 - Use prose for one thought, one message, one contrast, or one correction.
 - Use bullets only for explicit lists, task lists, steps, or clearly separate points.
 - Treat "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
+- Convert spoken punctuation words into punctuation marks, such as "question mark" to "?", "full stop" or "period" to ".", and "comma" to ",".
 - Treat "side note", "by the way", and "in brackets" as asides; keep the text before and after them.
 - Apply corrections like "actually", "no wait", and "scratch that".
 - Convert obvious technical dictation, such as "slash v one slash audio" to "/v1/audio" and "four hundred and four errors" to "404 errors".
