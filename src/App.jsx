@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Eraser, Sparkles, Copy, Check, Settings2 } from 'lucide-react'
+import { Eraser, Sparkles, Copy, Check, Settings } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
@@ -219,7 +219,7 @@ function App() {
           aria-label="Settings"
           className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
         >
-          <Settings2 size={18} strokeWidth={1.75} color="#8A766E" />
+          <Settings size={18} strokeWidth={1.75} color="#8A766E" />
         </button>
       </header>
 
