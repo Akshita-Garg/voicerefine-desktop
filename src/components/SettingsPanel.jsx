@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import { TRANSFORM_PRESETS, defaultPromptForPreset } from '../utils/composePrompt'
 import {
@@ -177,7 +178,14 @@ export function SettingsPanel({ open, onClose, onSaved }) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
           <h2 className="text-base font-semibold text-[#3A2F2A]">Settings</h2>
-          <button onClick={onClose} className="text-[#6B5B52] hover:text-[#3A2F2A] text-2xl leading-none transition-colors">x</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close settings"
+            className="grid h-8 w-8 place-items-center rounded-md text-[#8A766E] transition-colors hover:bg-[rgba(58,47,42,0.06)] hover:text-[#3A2F2A]"
+          >
+            <X size={18} strokeWidth={1.75} />
+          </button>
         </div>
 
         <div className="flex-1 px-6 py-6 flex flex-col gap-8">
