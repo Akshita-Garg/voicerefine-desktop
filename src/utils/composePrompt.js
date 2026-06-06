@@ -9,7 +9,7 @@ The transcript comes from someone speaking out loud. Keep their words and meanin
 
 Do:
 - Remove filler words like "um" and "uh".
-- Remove repeated starts, stutters, and obvious false starts.
+- Remove stutters and repeated starts.
 - Add punctuation and capitalization, including obvious names and sentence starts.
 - Keep short context phrases like "quick update", "note to self", and "message Sam".
 - Split into paragraphs when the speaker changes thought.
@@ -124,7 +124,7 @@ The transcript comes from someone speaking out loud. Make it easier to read, but
 
 Rules:
 - Preserve names, recipients, dates, numbers, technical terms, tasks, reasons, and context.
-- Remove filler words, repeated starts, and obvious false starts.
+- Remove filler words, stutters, and repeated starts.
 - Improve grammar and sentence flow, but do not summarize.
 - Use prose for one thought, one message, one contrast, or one correction.
 - Use bullets only for explicit lists, task lists, steps, or clearly separate points.
