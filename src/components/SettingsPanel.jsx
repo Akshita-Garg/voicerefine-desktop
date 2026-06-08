@@ -60,7 +60,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [asrModelStatus, setAsrModelStatus] = useState('idle')
   const [keyStatus, setKeyStatus] = useState('idle')
   const [keyError, setKeyError] = useState('')
-  const [override, setOverride] = useState(false)
   const shortcutButtonRef = useRef(null)
 
   useEffect(() => {
@@ -90,7 +89,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setShortcutStatus('idle')
     setShortcutError('')
     setIsCapturingShortcut(false)
-    setOverride(false)
   }, [open])
 
   useEffect(() => {
@@ -98,12 +96,30 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   }, [isCapturingShortcut])
 
   const needsKey = PROVIDER_OPTIONS.find(p => p.value === provider)?.needsKey ?? false
+  const providerNeedsKey = (value) => PROVIDER_OPTIONS.find(p => p.value === value)?.needsKey ?? false
 
   const handleProviderChange = (val) => {
     setProvider(val)
     setKeyStatus('idle')
     setKeyError('')
-    setOverride(false)
+    localStorage.setItem('vr_provider', val)
+    if (!providerNeedsKey(val)) {
+      setApiKey('')
+      localStorage.removeItem('vr_api_key')
+    }
+    onSaved?.()
+  }
+
+  const handleApiKeyChange = (value) => {
+    setApiKey(value)
+    setKeyStatus('idle')
+    setKeyError('')
+    if (value.trim()) {
+      localStorage.setItem('vr_api_key', value)
+    } else {
+      localStorage.removeItem('vr_api_key')
+    }
+    onSaved?.({ warm: false })
   }
 
   const handleValidate = async () => {
@@ -129,29 +145,34 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     } else {
       setStructurePrompt(value)
     }
+    localStorage.setItem('vr_transform_prompt_mode', TRANSFORM_PROMPT_MODE_CUSTOM)
+    localStorage.setItem(promptStorageKeyForPreset(preset), value.trim() || defaultPromptForPreset(preset))
+    onSaved?.({ warm: false })
   }
 
   const handleResetTransformPrompt = (preset) => {
     setTransformPromptMode(TRANSFORM_PROMPT_MODE_CUSTOM)
+    const defaultPrompt = defaultPromptForPreset(preset)
     if (preset === 'clarity') {
-      setClarityPrompt(defaultPromptForPreset('clarity'))
+      setClarityPrompt(defaultPrompt)
     } else {
-      setStructurePrompt(defaultPromptForPreset('structure'))
+      setStructurePrompt(defaultPrompt)
     }
+    localStorage.setItem('vr_transform_prompt_mode', TRANSFORM_PROMPT_MODE_CUSTOM)
+    localStorage.setItem(promptStorageKeyForPreset(preset), defaultPrompt)
+    onSaved?.({ warm: false })
   }
 
   const handleUseBuiltInTransformPrompts = () => {
     setTransformPromptMode(TRANSFORM_PROMPT_MODE_PRESET)
     setClarityPrompt(defaultPromptForPreset('clarity'))
     setStructurePrompt(defaultPromptForPreset('structure'))
+    localStorage.setItem('vr_transform_prompt_mode', TRANSFORM_PROMPT_MODE_PRESET)
+    localStorage.removeItem(promptStorageKeyForPreset('clarity'))
+    localStorage.removeItem(promptStorageKeyForPreset('structure'))
+    localStorage.removeItem('vr_transform_prompt')
+    onSaved?.({ warm: false })
   }
-
-  const canSave =
-    provider === 'none' ||
-    provider === 'builtin' ||
-    keyStatus === 'valid' ||
-    keyStatus === 'rate_limited' ||
-    override
 
   const handleNativeAsrModelChange = async (model) => {
     setNativeAsrModel(model)
@@ -232,54 +253,26 @@ export function SettingsPanel({ open, onClose, onSaved }) {
 
     setRecordingShortcut(nextShortcut)
     setIsCapturingShortcut(false)
-    setShortcutStatus('idle')
-    setShortcutError('')
+    void applyRecordingShortcut(nextShortcut)
   }
 
-  const handleSave = async () => {
+  const applyRecordingShortcut = async (accelerator) => {
+    if (!accelerator) return
     setShortcutStatus('saving')
     setShortcutError('')
     try {
-      if (recordingShortcut) {
-        const shortcutResult = await window.voicerefine?.setRecordingShortcut?.(recordingShortcut)
-        if (shortcutResult && !shortcutResult.ok) {
-          setShortcutStatus('error')
-          setShortcutError(`${formatShortcutLabel(shortcutResult.failedAccelerator)} is unavailable. VoiceRefine kept ${formatShortcutLabel(shortcutResult.accelerator)}.`)
-          setRecordingShortcut(shortcutResult.accelerator)
-          return
-        }
+      const shortcutResult = await window.voicerefine?.setRecordingShortcut?.(accelerator)
+      if (shortcutResult && !shortcutResult.ok) {
+        setShortcutStatus('error')
+        setShortcutError(`${formatShortcutLabel(shortcutResult.failedAccelerator)} is unavailable. VoiceRefine kept ${formatShortcutLabel(shortcutResult.accelerator)}.`)
+        setRecordingShortcut(shortcutResult.accelerator)
+        return
       }
+      setShortcutStatus('ready')
+      setRecordingShortcut(shortcutResult?.accelerator ?? accelerator)
     } catch (err) {
       setShortcutStatus('error')
       setShortcutError(err?.message ?? 'Could not update the recording shortcut.')
-      return
-    }
-
-    try {
-      localStorage.setItem('vr_provider', provider)
-      localStorage.setItem('vr_native_asr_model', nativeAsrModel)
-      void syncSelectedNativeAsrModel(nativeAsrModel)
-      if (needsKey) {
-        localStorage.setItem('vr_api_key', apiKey)
-      } else {
-        localStorage.removeItem('vr_api_key')
-      }
-      localStorage.setItem('vr_transform_prompt_mode', transformPromptMode)
-      if (transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM) {
-        localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
-        localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
-      } else {
-        localStorage.removeItem(promptStorageKeyForPreset('clarity'))
-        localStorage.removeItem(promptStorageKeyForPreset('structure'))
-        localStorage.removeItem('vr_transform_prompt')
-      }
-      setShortcutStatus('idle')
-      onSaved?.()
-      onClose()
-    } catch (err) {
-      setShortcutStatus('error')
-      setShortcutError(err?.message ?? 'Could not save settings.')
-      return
     }
   }
 
@@ -349,7 +342,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 <input
                   type="password"
                   value={apiKey}
-                  onChange={e => { setApiKey(e.target.value); setKeyStatus('idle') }}
+                  onChange={e => handleApiKeyChange(e.target.value)}
                   placeholder="Paste your key here"
                   className="flex-1 rounded-lg px-3 py-2 text-sm text-[#3A2F2A] placeholder-[#6B5B52] outline-none border border-[rgba(58,47,42,0.08)] focus:border-[#7FAF8F]/50"
                   style={{ background: '#E6CFC7' }}
@@ -369,20 +362,11 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               {keyStatus === 'invalid' && (
                 <div className="mt-2">
                   <p className="text-sm text-red-700">{keyError}</p>
-                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={override}
-                      onChange={e => setOverride(e.target.checked)}
-                      className="accent-[#7FAF8F]"
-                    />
-                    <span className="text-xs text-[#8A766E]">Save anyway, I know what I&apos;m doing</span>
-                  </label>
                 </div>
               )}
 
               <p className="mt-3 text-xs text-[#8A766E]">
-                Your key is stored only on this device and never sent to any server we own.
+                Your key is saved on this device as you type and never sent to any server we own.
               </p>
             </section>
           )}
@@ -444,9 +428,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                   type="button"
                   onClick={() => {
                     setRecordingShortcut(defaultRecordingShortcut)
-                    setShortcutStatus('idle')
                     setShortcutError('')
                     setIsCapturingShortcut(false)
+                    void applyRecordingShortcut(defaultRecordingShortcut)
                   }}
                   className="text-xs text-[#8A766E] transition-colors hover:text-[#3A2F2A]"
                 >
@@ -471,6 +455,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               This shortcut works globally and toggles the overlay recording in other apps. Use Ctrl, Cmd, or Alt with another key.
             </p>
             {shortcutStatus === 'error' && <p className="mt-2 text-xs text-red-700">{shortcutError}</p>}
+            {shortcutStatus === 'ready' && <p className="mt-2 text-xs text-[#5C8F70]">Shortcut updated.</p>}
           </section>
 
           <section>
@@ -502,7 +487,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                 <div className="rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 bg-[rgba(58,47,42,0.04)]">
                   <div className="flex flex-col gap-3">
                     <p className="text-xs text-[#6B5B52] leading-snug">
-                      Editing either prompt switches this section to custom prompts. Save Settings to use your edited prompts in the app and overlay.
+                      Editing either prompt switches this section to custom prompts. Changes apply in the app and overlay automatically.
                     </p>
                     <button
                       type="button"
@@ -563,13 +548,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
         </div>
 
         <div className="px-6 py-4 border-t border-[rgba(58,47,42,0.08)] flex flex-col gap-3">
-          <button
-            onClick={handleSave}
-            disabled={!canSave || shortcutStatus === 'saving'}
-            className="w-full py-2 rounded-xl text-sm font-medium bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {shortcutStatus === 'saving' ? 'Saving...' : 'Save'}
-          </button>
+          <p className="text-center text-xs text-[#8A766E]">Changes apply automatically.</p>
           <button
             onClick={handleReset}
             className="w-full py-2 rounded-xl text-sm text-[#6B5B52] hover:text-[#3A2F2A] transition-colors"

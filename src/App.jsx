@@ -178,13 +178,13 @@ function App() {
     }
   }
 
-  const handleSettingsSaved = () => {
+  const handleSettingsSaved = ({ warm = true } = {}) => {
     const nextProvider = readProvider()
     const nextMode = readRefinementMode()
     setProvider(nextProvider)
     setRefinementMode(nextMode)
     void syncRefinementSettings()
-    warmSelectedRefinementProvider({ refinementMode: nextMode, provider: nextProvider })
+    if (warm) warmSelectedRefinementProvider({ refinementMode: nextMode, provider: nextProvider })
   }
 
   const handleRefinementModeChange = (value) => {
