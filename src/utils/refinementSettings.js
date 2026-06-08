@@ -29,6 +29,15 @@ export function promptStorageKeyForPreset(preset) {
   return `vr_transform_prompt_${normalizeTransformPreset(preset)}`
 }
 
+export function isStaleBuiltInPromptCopy(preset, prompt) {
+  const normalizedPreset = normalizeTransformPreset(preset)
+  if (!prompt) return false
+  if (normalizedPreset === 'structure') {
+    return prompt.includes('Use bullets only for explicit lists, task lists, steps, or clearly separate points.')
+  }
+  return false
+}
+
 export function readTransformPromptForPreset(preset, storage = globalThis.localStorage) {
   const normalizedPreset = normalizeTransformPreset(preset)
   if (readTransformPromptMode(storage) !== TRANSFORM_PROMPT_MODE_CUSTOM) {
@@ -37,7 +46,11 @@ export function readTransformPromptForPreset(preset, storage = globalThis.localS
 
   const stored = storage?.getItem(promptStorageKeyForPreset(normalizedPreset))?.trim()
   const legacyStored = storage?.getItem('vr_transform_prompt')?.trim()
-  return stored || legacyStored || defaultPromptForPreset(normalizedPreset)
+  const customPrompt = stored || legacyStored
+  if (!customPrompt || isStaleBuiltInPromptCopy(normalizedPreset, customPrompt)) {
+    return defaultPromptForPreset(normalizedPreset)
+  }
+  return customPrompt
 }
 
 export function readTransformPrompt(storage = globalThis.localStorage) {
@@ -48,5 +61,8 @@ export function readTransformPrompt(storage = globalThis.localStorage) {
 export function readStoredPromptDraftForPreset(preset, storage = globalThis.localStorage) {
   const normalizedPreset = normalizeTransformPreset(preset)
   const stored = storage?.getItem(promptStorageKeyForPreset(normalizedPreset))?.trim()
-  return stored || defaultPromptForPreset(normalizedPreset)
+  if (!stored || isStaleBuiltInPromptCopy(normalizedPreset, stored)) {
+    return defaultPromptForPreset(normalizedPreset)
+  }
+  return stored
 }

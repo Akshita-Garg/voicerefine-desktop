@@ -7,6 +7,7 @@ import {
   normalizeRefinementMode,
   normalizeTransformPromptMode,
   promptStorageKeyForPreset,
+  isStaleBuiltInPromptCopy,
   readRefinementMode,
   readTransformPreset,
   readTransformPrompt,
@@ -59,6 +60,22 @@ describe('refinementSettings', () => {
 
     expect(readTransformPrompt(customStorage)).toBe('Custom structure prompt')
     expect(readTransformPromptForPreset('clarity', customStorage)).toBe('Custom clarity prompt')
+  })
+
+  it('falls back from stale built-in prompt copies in custom storage', () => {
+    const stalePrompt = [
+      'Rules:',
+      '- Use bullets only for explicit lists, task lists, steps, or clearly separate points.',
+    ].join('\n')
+    const customStorage = storage({
+      vr_transform_prompt_mode: TRANSFORM_PROMPT_MODE_CUSTOM,
+      vr_transform_preset: 'structure',
+      [promptStorageKeyForPreset('structure')]: stalePrompt,
+    })
+
+    expect(isStaleBuiltInPromptCopy('structure', stalePrompt)).toBe(true)
+    expect(readTransformPrompt(customStorage)).toContain('Use prose by default when the transcript does not contain an explicit list or task steps.')
+    expect(readTransformPrompt(customStorage)).not.toContain('clearly separate points')
   })
 
   it('normalizes transform prompt mode', () => {

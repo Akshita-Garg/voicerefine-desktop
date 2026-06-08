@@ -265,8 +265,14 @@ export function SettingsPanel({ open, onClose, onSaved }) {
         localStorage.removeItem('vr_api_key')
       }
       localStorage.setItem('vr_transform_prompt_mode', transformPromptMode)
-      localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
-      localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
+      if (transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM) {
+        localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
+        localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
+      } else {
+        localStorage.removeItem(promptStorageKeyForPreset('clarity'))
+        localStorage.removeItem(promptStorageKeyForPreset('structure'))
+        localStorage.removeItem('vr_transform_prompt')
+      }
       setShortcutStatus('idle')
       onSaved?.()
       onClose()
