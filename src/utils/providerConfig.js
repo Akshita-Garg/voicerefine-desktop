@@ -1,5 +1,5 @@
 export function normalizeProvider(provider) {
-  return provider === 'browser' || provider === 'ollama' ? 'builtin' : provider
+  return provider === 'browser' || provider === 'ollama' || provider === 'none' ? 'builtin' : provider
 }
 
 export function readProviderConfig(storage) {

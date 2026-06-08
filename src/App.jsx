@@ -32,7 +32,7 @@ const REFINEMENT_MODES = [
 
 function readProvider() {
   const stored = localStorage.getItem('vr_provider') ?? 'builtin'
-  return stored === 'browser' || stored === 'ollama' ? 'builtin' : stored
+  return stored === 'browser' || stored === 'ollama' || stored === 'none' ? 'builtin' : stored
 }
 
 function readApiKey() {
@@ -203,8 +203,6 @@ function App() {
     ? (isProcessing ? 'Cleaning...' : 'Clean Transcript')
     : (isLoadingRefinementModel ? 'Loading transform model...' : isProcessing ? 'Transforming...' : `Transform as ${presetLabel(transformPreset)}`)
 
-  const transformEnabled = provider !== 'none'
-
   return (
     <div
       className="min-h-screen text-[#3A2F2A]"
@@ -250,7 +248,7 @@ function App() {
           )}
           <button
             onClick={handleProcess}
-            disabled={!rawTranscript.trim() || isProcessing || isRecording || isTranscribing || (refinementMode === REFINEMENT_MODE_TRANSFORM && !transformEnabled)}
+            disabled={!rawTranscript.trim() || isProcessing || isRecording || isTranscribing}
             className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-medium transition-colors duration-150
               bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5]
               disabled:opacity-40 disabled:cursor-not-allowed"
@@ -260,18 +258,6 @@ function App() {
               : <Sparkles size={14} strokeWidth={1.75} color="#F4F7F5" />}
             {processingLabel}
           </button>
-          {refinementMode === REFINEMENT_MODE_TRANSFORM && !transformEnabled && (
-            <p className="text-sm text-[#8A766E] text-center">
-              Transform is disabled.{' '}
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="underline hover:text-[#3A2F2A] transition-colors"
-              >
-                Choose a provider in Settings
-              </button>
-              .
-            </p>
-          )}
         </div>
 
         <div className="w-full max-w-5xl flex flex-col gap-5">

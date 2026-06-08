@@ -50,7 +50,7 @@ function transformSamplingFor({ preset }) {
  */
 export async function refine({ system, user, preset, providerConfig, maxTokens }) {
   const { provider, apiKey } = providerConfig ?? getProviderConfig()
-  if (provider === 'none' || provider === 'browser') return null
+  if (provider === 'browser') return null
 
   // Built-in: runs Gemma locally via IPC to the main process.
   if (provider === 'builtin') {

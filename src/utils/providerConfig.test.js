@@ -15,16 +15,17 @@ describe('providerConfig', () => {
     expect(readProviderConfig(storage())).toEqual({ provider: 'builtin', apiKey: '' })
   })
 
-  it('maps old web providers to builtin for desktop', () => {
+  it('maps old unsupported providers to builtin for desktop', () => {
     expect(normalizeProvider('browser')).toBe('builtin')
     expect(normalizeProvider('ollama')).toBe('builtin')
+    expect(normalizeProvider('none')).toBe('builtin')
   })
 
   it('preserves current desktop providers and api keys', () => {
     expect(readProviderConfig(storage({ vr_provider: 'openai', vr_api_key: 'sk-test' })))
       .toEqual({ provider: 'openai', apiKey: 'sk-test' })
     expect(readProviderConfig(storage({ vr_provider: 'none' })))
-      .toEqual({ provider: 'none', apiKey: '' })
+      .toEqual({ provider: 'builtin', apiKey: '' })
   })
 
   it('falls back to builtin when storage is unavailable', () => {

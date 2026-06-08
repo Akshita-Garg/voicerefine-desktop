@@ -22,7 +22,6 @@ const PROVIDER_OPTIONS = [
   { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Transform runs locally on your device using a bundled model. No setup, no internet required.' },
   { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true,  description: 'Free API key from Google AI Studio.' },
   { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true,  description: 'Requires an OpenAI API key.' },
-  { value: 'none',    label: 'Disable transform',      needsKey: false, description: 'Keep Clean mode only. Transform buttons stay unavailable.' },
 ]
 
 const NATIVE_ASR_MODEL_OPTIONS = [
@@ -65,7 +64,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   useEffect(() => {
     if (!open) return
     const stored = localStorage.getItem('vr_provider') ?? 'builtin'
-    setProvider(stored === 'browser' || stored === 'ollama' ? 'builtin' : stored)
+    setProvider(stored === 'browser' || stored === 'ollama' || stored === 'none' ? 'builtin' : stored)
     setApiKey(localStorage.getItem('vr_api_key') ?? '')
     setNativeAsrModel(currentNativeAsrModel())
     window.voicerefine?.getRecordingShortcut?.().then(result => {

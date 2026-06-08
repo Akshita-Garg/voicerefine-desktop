@@ -28,7 +28,6 @@ const PROVIDERS = [
   { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Transform runs locally on your device using a bundled model. No internet required.' },
   { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true, description: 'Free API key from Google AI Studio.' },
   { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true, description: 'Requires an OpenAI API key.' },
-  { value: 'none',    label: 'Skip transform for now', needsKey: false, description: 'You can stay with clean-only mode and enable transform later.' },
 ]
 
 function formatShortcutLabel(accelerator) {
@@ -287,7 +286,6 @@ function ProviderStep({ onComplete }) {
 
   const needsKey = PROVIDERS.find(p => p.value === provider)?.needsKey ?? false
   const canContinue =
-    provider === 'none' ||
     provider === 'builtin' ||
     status === 'valid' ||
     status === 'rate_limited' ||
