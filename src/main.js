@@ -13,7 +13,7 @@ if (started) {
   app.quit();
 }
 
-const DEFAULT_HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
+const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Space';
 const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;

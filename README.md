@@ -51,9 +51,11 @@ The desktop shortcut flow uses a more compact prompt path than the main app to r
 
 ### Global Shortcut Flow
 
-On Windows and Linux, the current default shortcut is:
+The default shortcut is:
 
-- `Ctrl+Shift+Space`
+- `Ctrl+Space`
+
+You can change the shortcut during onboarding or later in Settings.
 
 The shortcut opens a small overlay, records until toggled off, transcribes the audio, optionally refines the result using the selected intent and mode from the main app, and pastes the final text into the active application.
 

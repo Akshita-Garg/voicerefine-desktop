@@ -277,7 +277,15 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     }
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    try {
+      const shortcut = await window.voicerefine?.getRecordingShortcut?.()
+      if (shortcut?.defaultAccelerator) {
+        await window.voicerefine?.setRecordingShortcut?.(shortcut.defaultAccelerator)
+      }
+    } catch (err) {
+      console.warn('[settings] Could not reset recording shortcut', err)
+    }
     localStorage.clear()
     onClose()
     window.location.reload()

@@ -31,6 +31,52 @@ const PROVIDERS = [
   { value: 'none',    label: 'Skip transform for now', needsKey: false, description: 'You can stay with clean-only mode and enable transform later.' },
 ]
 
+function formatShortcutLabel(accelerator) {
+  return accelerator
+    .replace(/Command/g, 'Cmd')
+    .replace(/Control/g, 'Ctrl')
+    .replace(/Alt/g, 'Alt')
+    .replace(/\+/g, ' + ')
+}
+
+function shortcutKeyFromEvent(event) {
+  const keyMap = {
+    ' ': 'Space',
+    Spacebar: 'Space',
+    Escape: 'Esc',
+    ArrowUp: 'Up',
+    ArrowDown: 'Down',
+    ArrowLeft: 'Left',
+    ArrowRight: 'Right',
+    Delete: 'Delete',
+    Backspace: 'Backspace',
+    Enter: 'Enter',
+    Tab: 'Tab',
+  }
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return null
+  if (keyMap[event.key]) return keyMap[event.key]
+  if (/^F\d{1,2}$/.test(event.key)) return event.key
+  if (event.key.length === 1) return event.key.toUpperCase()
+  return event.key
+}
+
+function shortcutFromEvent(event) {
+  const key = shortcutKeyFromEvent(event)
+  if (!key || key === 'Esc') return null
+
+  const isMac = window.navigator.platform.toLowerCase().includes('mac')
+  const modifiers = []
+  if (event.metaKey) modifiers.push(isMac ? 'Command' : 'Super')
+  if (event.ctrlKey) modifiers.push('Control')
+  if (event.altKey) modifiers.push('Alt')
+  if (event.shiftKey) modifiers.push('Shift')
+
+  const hasPrimaryModifier = modifiers.some(modifier => modifier === 'Command' || modifier === 'Control' || modifier === 'Alt' || modifier === 'Super')
+  if (!hasPrimaryModifier) return null
+
+  return [...modifiers, key].join('+')
+}
+
 function Step1({ refinementMode, onSelect, onContinue }) {
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-xl">
@@ -72,7 +118,143 @@ function Step1({ refinementMode, onSelect, onContinue }) {
   )
 }
 
-function Step2({ onComplete }) {
+function ShortcutStep({ onContinue }) {
+  const [shortcut, setShortcut] = useState('Control+Space')
+  const [defaultShortcut, setDefaultShortcut] = useState('Control+Space')
+  const [capturing, setCapturing] = useState(false)
+  const [status, setStatus] = useState('idle')
+  const [error, setError] = useState('')
+  const buttonRef = useRef(null)
+
+  useEffect(() => {
+    window.voicerefine?.getRecordingShortcut?.().then(result => {
+      const nextDefault = result?.defaultAccelerator ?? 'Control+Space'
+      setDefaultShortcut(nextDefault)
+      setShortcut(result?.accelerator ?? nextDefault)
+    }).catch(err => {
+      console.warn('[onboarding] Could not load recording shortcut', err)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (capturing) buttonRef.current?.focus()
+  }, [capturing])
+
+  const handleKeyDown = (event) => {
+    if (!capturing) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (event.key === 'Escape') {
+      setCapturing(false)
+      setStatus('idle')
+      setError('')
+      return
+    }
+
+    const nextShortcut = shortcutFromEvent(event)
+    if (!nextShortcut) {
+      setStatus('error')
+      setError('Use Ctrl, Cmd, or Alt with another key.')
+      return
+    }
+
+    setShortcut(nextShortcut)
+    setCapturing(false)
+    setStatus('idle')
+    setError('')
+  }
+
+  const handleContinue = async () => {
+    setStatus('saving')
+    setError('')
+    try {
+      const result = await window.voicerefine?.setRecordingShortcut?.(shortcut)
+      if (result && !result.ok) {
+        setStatus('error')
+        setShortcut(result.accelerator ?? defaultShortcut)
+        setError(`${formatShortcutLabel(result.failedAccelerator)} is unavailable. Try another shortcut.`)
+        return
+      }
+      onContinue()
+    } catch (err) {
+      setStatus('error')
+      setError(err?.message ?? 'Could not save shortcut.')
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-8 w-full max-w-xl">
+      <div className="text-center">
+        <h1 className="text-2xl font-semibold text-[#3A2F2A] mb-2">Choose your recording shortcut</h1>
+        <p className="text-sm text-[#8A766E]">Use it anywhere to start recording, then press it again to stop.</p>
+      </div>
+
+      <div className="w-full flex flex-col gap-3">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => {
+            setCapturing(true)
+            setStatus('idle')
+            setError('')
+          }}
+          onKeyDown={handleKeyDown}
+          className={`w-full rounded-2xl border px-4 py-5 text-center text-base font-semibold outline-none transition-colors focus:border-[#7FAF8F]/60 ${
+            capturing
+              ? 'bg-[rgba(127,175,143,0.12)] border-[#7FAF8F]/60 text-[#3A2F2A]'
+              : 'bg-[#E6CFC7] border-[rgba(58,47,42,0.08)] text-[#3A2F2A] hover:border-[rgba(58,47,42,0.18)]'
+          }`}
+        >
+          {capturing ? 'Press your shortcut...' : formatShortcutLabel(shortcut)}
+        </button>
+
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setShortcut(defaultShortcut)
+              setCapturing(false)
+              setStatus('idle')
+              setError('')
+            }}
+            className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+          >
+            Use default
+          </button>
+          {capturing && (
+            <button
+              type="button"
+              onClick={() => {
+                setCapturing(false)
+                setStatus('idle')
+                setError('')
+              }}
+              className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+
+        <p className="text-xs text-[#8A766E] text-center leading-snug">
+          Default is {formatShortcutLabel(defaultShortcut)}. If a shortcut is already used by your system, VoiceRefine will ask you to choose another.
+        </p>
+        {status === 'error' && <p className="text-sm text-red-700 text-center">{error}</p>}
+      </div>
+
+      <button
+        onClick={handleContinue}
+        disabled={!shortcut || status === 'saving'}
+        className="px-8 py-2.5 rounded-xl text-sm font-medium bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {status === 'saving' ? 'Saving...' : 'Continue'}
+      </button>
+    </div>
+  )
+}
+
+function ProviderStep({ onComplete }) {
   const [provider, setProvider] = useState('builtin')
   const [apiKey, setApiKey] = useState('')
   const [status, setStatus] = useState('idle')
@@ -212,6 +394,10 @@ export function Onboarding({ onComplete }) {
 
   const handleStep1Continue = () => {
     localStorage.setItem('vr_refinement_mode', refinementMode)
+    setStep(2)
+  }
+
+  const handleShortcutContinue = () => {
     if (refinementMode === REFINEMENT_MODE_CLEAN) {
       localStorage.setItem('vr_provider', 'builtin')
       localStorage.setItem('vr_transform_preset', DEFAULT_TRANSFORM_PRESET)
@@ -223,10 +409,10 @@ export function Onboarding({ onComplete }) {
       fadeTimerRef.current = setTimeout(onComplete, 500)
       return
     }
-    setStep(2)
+    setStep(3)
   }
 
-  const handleStep2Complete = () => {
+  const handleProviderComplete = () => {
     localStorage.setItem('vr_refinement_mode', REFINEMENT_MODE_TRANSFORM)
     localStorage.setItem('vr_onboarding_done', 'true')
     setFading(true)
@@ -240,11 +426,12 @@ export function Onboarding({ onComplete }) {
     >
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
         <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">VoiceRefine</h1>
-        <span className="text-xs text-[#8A766E]">Step {step} of {refinementMode === REFINEMENT_MODE_CLEAN ? 1 : 2}</span>
+        <span className="text-xs text-[#8A766E]">Step {step} of {refinementMode === REFINEMENT_MODE_TRANSFORM ? 3 : 2}</span>
       </div>
 
       {step === 1 && <Step1 refinementMode={refinementMode} onSelect={setRefinementMode} onContinue={handleStep1Continue} />}
-      {step === 2 && <Step2 onComplete={handleStep2Complete} />}
+      {step === 2 && <ShortcutStep onContinue={handleShortcutContinue} />}
+      {step === 3 && <ProviderStep onComplete={handleProviderComplete} />}
     </div>
   )
 }

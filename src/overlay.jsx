@@ -16,9 +16,7 @@ function formatShortcutLabel(accelerator) {
     .replace(/\+/g, '+')
 }
 
-const DEFAULT_HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
-  ? 'Cmd+Shift+Space'
-  : 'Ctrl+Shift+Space'
+const DEFAULT_HOTKEY_LABEL = 'Ctrl+Space'
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
