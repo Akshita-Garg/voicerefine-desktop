@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import { TRANSFORM_PRESETS, defaultPromptForPreset } from '../utils/composePrompt'
@@ -49,7 +49,8 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [apiKey, setApiKey] = useState('')
   const [nativeAsrModel, setNativeAsrModel] = useState(NATIVE_ASR_MODEL_PARAKEET_Q4)
   const [recordingShortcut, setRecordingShortcut] = useState('')
-  const [recordingShortcutOptions, setRecordingShortcutOptions] = useState([])
+  const [defaultRecordingShortcut, setDefaultRecordingShortcut] = useState('')
+  const [isCapturingShortcut, setIsCapturingShortcut] = useState(false)
   const [shortcutStatus, setShortcutStatus] = useState('idle')
   const [shortcutError, setShortcutError] = useState('')
   const [transformPromptMode, setTransformPromptMode] = useState(TRANSFORM_PROMPT_MODE_PRESET)
@@ -60,6 +61,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [keyStatus, setKeyStatus] = useState('idle')
   const [keyError, setKeyError] = useState('')
   const [override, setOverride] = useState(false)
+  const shortcutButtonRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
@@ -69,22 +71,31 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setNativeAsrModel(currentNativeAsrModel())
     window.voicerefine?.getRecordingShortcut?.().then(result => {
       setRecordingShortcut(result?.accelerator ?? '')
-      setRecordingShortcutOptions(result?.options ?? [])
+      setDefaultRecordingShortcut(result?.defaultAccelerator ?? '')
     }).catch(err => {
       console.warn('[settings] Could not load recording shortcut', err)
     })
     const storedTransformPromptMode = readTransformPromptMode()
     setTransformPromptMode(storedTransformPromptMode)
     setTransformPromptEditorOpen(storedTransformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM)
-    setClarityPrompt(readStoredPromptDraftForPreset('clarity'))
-    setStructurePrompt(readStoredPromptDraftForPreset('structure'))
+    setClarityPrompt(storedTransformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM
+      ? readStoredPromptDraftForPreset('clarity')
+      : defaultPromptForPreset('clarity'))
+    setStructurePrompt(storedTransformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM
+      ? readStoredPromptDraftForPreset('structure')
+      : defaultPromptForPreset('structure'))
     setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
     setShortcutStatus('idle')
     setShortcutError('')
+    setIsCapturingShortcut(false)
     setOverride(false)
   }, [open])
+
+  useEffect(() => {
+    if (isCapturingShortcut) shortcutButtonRef.current?.focus()
+  }, [isCapturingShortcut])
 
   const needsKey = PROVIDER_OPTIONS.find(p => p.value === provider)?.needsKey ?? false
 
@@ -161,6 +172,69 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     .replace(/Control/g, 'Ctrl')
     .replace(/Alt/g, 'Alt')
     .replace(/\+/g, ' + ')
+
+  const shortcutKeyFromEvent = (event) => {
+    const keyMap = {
+      ' ': 'Space',
+      Spacebar: 'Space',
+      Escape: 'Esc',
+      ArrowUp: 'Up',
+      ArrowDown: 'Down',
+      ArrowLeft: 'Left',
+      ArrowRight: 'Right',
+      Delete: 'Delete',
+      Backspace: 'Backspace',
+      Enter: 'Enter',
+      Tab: 'Tab',
+    }
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return null
+    if (keyMap[event.key]) return keyMap[event.key]
+    if (/^F\d{1,2}$/.test(event.key)) return event.key
+    if (event.key.length === 1) return event.key.toUpperCase()
+    return event.key
+  }
+
+  const shortcutFromEvent = (event) => {
+    const key = shortcutKeyFromEvent(event)
+    if (!key || key === 'Esc') return null
+
+    const isMac = window.navigator.platform.toLowerCase().includes('mac')
+    const modifiers = []
+    if (event.metaKey) modifiers.push(isMac ? 'Command' : 'Super')
+    if (event.ctrlKey) modifiers.push('Control')
+    if (event.altKey) modifiers.push('Alt')
+    if (event.shiftKey) modifiers.push('Shift')
+
+    const hasPrimaryModifier = modifiers.some(modifier => modifier === 'Command' || modifier === 'Control' || modifier === 'Alt' || modifier === 'Super')
+    if (!hasPrimaryModifier) return null
+
+    return [...modifiers, key].join('+')
+  }
+
+  const handleShortcutKeyDown = (event) => {
+    if (!isCapturingShortcut) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (event.key === 'Escape') {
+      setIsCapturingShortcut(false)
+      setShortcutStatus('idle')
+      setShortcutError('')
+      return
+    }
+
+    const nextShortcut = shortcutFromEvent(event)
+    if (!nextShortcut) {
+      setShortcutStatus('error')
+      setShortcutError('Use at least one modifier, such as Ctrl, Cmd, or Alt, plus another key.')
+      return
+    }
+
+    setRecordingShortcut(nextShortcut)
+    setIsCapturingShortcut(false)
+    setShortcutStatus('idle')
+    setShortcutError('')
+  }
 
   const handleSave = async () => {
     setShortcutStatus('saving')
@@ -329,26 +403,58 @@ export function SettingsPanel({ open, onClose, onSaved }) {
 
           <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Shortcut</h3>
-            <label htmlFor="recording-shortcut" className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <span className="text-sm text-[#3A2F2A] font-medium">Start and stop recording</span>
-              <select
-                id="recording-shortcut"
-                value={recordingShortcut}
-                onChange={e => {
-                  setRecordingShortcut(e.target.value)
+              <button
+                ref={shortcutButtonRef}
+                type="button"
+                onClick={() => {
+                  setIsCapturingShortcut(true)
                   setShortcutStatus('idle')
                   setShortcutError('')
                 }}
-                className="w-full rounded-lg px-3 py-2 text-sm text-[#3A2F2A] outline-none border border-[rgba(58,47,42,0.08)] focus:border-[#7FAF8F]/50"
+                onKeyDown={handleShortcutKeyDown}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm outline-none transition-colors focus:border-[#7FAF8F]/60 ${
+                  isCapturingShortcut
+                    ? 'border-[#7FAF8F]/60 text-[#3A2F2A]'
+                    : 'border-[rgba(58,47,42,0.08)] text-[#3A2F2A] hover:border-[rgba(58,47,42,0.16)]'
+                }`}
                 style={{ background: '#E6CFC7' }}
               >
-                {recordingShortcutOptions.map(option => (
-                  <option key={option} value={option}>{formatShortcutLabel(option)}</option>
-                ))}
-              </select>
-            </label>
+                {isCapturingShortcut
+                  ? 'Press your shortcut...'
+                  : recordingShortcut ? formatShortcutLabel(recordingShortcut) : 'Click to set shortcut'}
+              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecordingShortcut(defaultRecordingShortcut)
+                    setShortcutStatus('idle')
+                    setShortcutError('')
+                    setIsCapturingShortcut(false)
+                  }}
+                  className="text-xs text-[#8A766E] transition-colors hover:text-[#3A2F2A]"
+                >
+                  Use default
+                </button>
+                {isCapturingShortcut && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCapturingShortcut(false)
+                      setShortcutStatus('idle')
+                      setShortcutError('')
+                    }}
+                    className="text-xs text-[#8A766E] transition-colors hover:text-[#3A2F2A]"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
             <p className="mt-2 text-xs text-[#8A766E] leading-snug">
-              This shortcut works globally and toggles the overlay recording in other apps.
+              This shortcut works globally and toggles the overlay recording in other apps. Use Ctrl, Cmd, or Alt with another key.
             </p>
             {shortcutStatus === 'error' && <p className="mt-2 text-xs text-red-700">{shortcutError}</p>}
           </section>

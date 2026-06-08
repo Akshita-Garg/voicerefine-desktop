@@ -14,9 +14,6 @@ if (started) {
 }
 
 const DEFAULT_HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
-const HOTKEY_ACCELERATOR_OPTIONS = process.platform === 'darwin'
-  ? ['Command+Shift+Space', 'Command+Alt+Space', 'Command+Shift+R', 'Command+Alt+R', 'Command+Shift+D']
-  : ['Control+Shift+Space', 'Control+Alt+Space', 'Control+Shift+R', 'Control+Alt+R', 'Control+Shift+D'];
 const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;
@@ -39,7 +36,22 @@ function shortcutConfigPath() {
 }
 
 function normalizeHotkeyAccelerator(value) {
-  return HOTKEY_ACCELERATOR_OPTIONS.includes(value) ? value : DEFAULT_HOTKEY_ACCELERATOR;
+  return typeof value === 'string' && isValidHotkeyAccelerator(value) ? value : DEFAULT_HOTKEY_ACCELERATOR;
+}
+
+function isValidHotkeyAccelerator(value) {
+  if (typeof value !== 'string') return false;
+  const parts = value.split('+').map(part => part.trim()).filter(Boolean);
+  if (parts.length < 2) return false;
+
+  const key = parts.at(-1);
+  const modifiers = parts.slice(0, -1);
+  const validModifiers = new Set(['Command', 'Control', 'Alt', 'Option', 'Shift', 'Super', 'Meta']);
+  const hasModifier = modifiers.some(part => validModifiers.has(part));
+  if (!hasModifier) return false;
+  if (!key || validModifiers.has(key) || key === CANCEL_ACCELERATOR) return false;
+
+  return true;
 }
 
 function readStoredHotkeyAccelerator() {
@@ -350,7 +362,6 @@ app.whenReady().then(() => {
   ipcMain.handle('get-recording-shortcut', async () => {
     return {
       accelerator: hotkeyAccelerator,
-      options: HOTKEY_ACCELERATOR_OPTIONS,
       defaultAccelerator: DEFAULT_HOTKEY_ACCELERATOR,
     };
   });
