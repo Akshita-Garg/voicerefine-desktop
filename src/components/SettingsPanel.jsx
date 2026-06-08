@@ -477,37 +477,39 @@ export function SettingsPanel({ open, onClose, onSaved }) {
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transform Prompts</h3>
             <div className="flex flex-col gap-3">
               <p className="text-xs text-[#8A766E] leading-snug">
-                VoiceRefine uses built-in prompts for Smart Format and Polish & Organize. If you edit and save these transforms, your prompts will be used when you choose those transform options.
+                VoiceRefine uses the built-in prompts by default. Edit them only if you want your own custom behavior for Smart Format or Polish & Organize.
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM
+                    ? 'bg-[#7FAF8F]/20 text-[#5C8F70]'
+                    : 'bg-[rgba(58,47,42,0.06)] text-[#6B5B52]'
+                }`}>
+                  {transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM ? 'Using custom prompts' : 'Using built-in prompts'}
+                </span>
                 <button
                   type="button"
                   onClick={() => setTransformPromptEditorOpen(open => !open)}
                   className="px-3 py-2 rounded-lg text-sm text-[#3A2F2A] border border-[rgba(58,47,42,0.08)] hover:bg-[rgba(58,47,42,0.05)] transition-colors"
                 >
-                  {transformPromptEditorOpen ? 'Hide transforms' : 'Edit transforms'}
+                  {transformPromptEditorOpen ? 'Hide prompts' : 'Edit prompts'}
                 </button>
-                {transformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">
-                    Edited
-                  </span>
-                )}
               </div>
             </div>
 
             {transformPromptEditorOpen && (
               <div className="mt-4 flex flex-col gap-4">
-                <div className="rounded-xl border border-[rgba(127,175,143,0.25)] px-3 py-3 bg-[rgba(127,175,143,0.07)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-xs text-[#4A7A5E] leading-snug">
-                      Changes here replace the built-in prompt for that transform after you save Settings.
+                <div className="rounded-xl border border-[rgba(58,47,42,0.08)] px-3 py-3 bg-[rgba(58,47,42,0.04)]">
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs text-[#6B5B52] leading-snug">
+                      Editing either prompt switches this section to custom prompts. Save Settings to use your edited prompts in the app and overlay.
                     </p>
                     <button
                       type="button"
                       onClick={handleUseBuiltInTransformPrompts}
-                      className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors flex-shrink-0"
+                      className="self-start text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     >
-                      Use built-in
+                      Restore built-in prompts
                     </button>
                   </div>
                 </div>
@@ -522,7 +524,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                       onClick={() => handleResetTransformPrompt('clarity')}
                       className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     >
-                      Reset
+                      Reset this prompt
                     </button>
                   </div>
                   <textarea
@@ -544,7 +546,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                       onClick={() => handleResetTransformPrompt('structure')}
                       className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
                     >
-                      Reset
+                      Reset this prompt
                     </button>
                   </div>
                   <textarea
