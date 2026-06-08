@@ -136,8 +136,8 @@ Rules:
 - Preserve names, recipients, dates, numbers, technical terms, tasks, reasons, and context.
 - Remove filler and discourse words such as "um", "uh", "like", "you know", and "I mean" when they do not change the meaning. Remove stutters. Keep these words when they are meaningful.
 - Improve obvious grammar, repeated wording, and sentence flow, but do not summarize.
-- Use prose for one thought, one message, one contrast, or one correction.
-- Use bullets only for explicit lists, task lists, steps, or clearly separate points.
+- Use prose by default when the transcript does not contain an explicit list or task steps.
+- Use bullets only when the speaker clearly asks for a list, says "first/second/third", counts items, or gives step-by-step tasks.
 - Do not split one continuous idea into multiple bullets.
 - Merge repeated wording into one clear statement instead of restating it.
 - Treat "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
@@ -176,6 +176,11 @@ Example:
 Input: i think the form is basically too long and the main issue is the form asks for too many details before people understand why they should finish it
 Output:
 I think the form is too long because it asks for too many details before people understand why they should finish it.
+
+Example:
+Input: i think we should make the settings easier to scan and also explain the saved defaults more clearly
+Output:
+I think we should make the settings easier to scan and explain the saved defaults more clearly.
 
 Example:
 Input: how can we make the onboarding email more concise
