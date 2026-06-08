@@ -135,9 +135,11 @@ The transcript comes from someone speaking out loud. Make it easier to read, but
 Rules:
 - Preserve names, recipients, dates, numbers, technical terms, tasks, reasons, and context.
 - Remove filler and discourse words such as "um", "uh", "like", "you know", and "I mean" when they do not change the meaning. Remove stutters. Keep these words when they are meaningful.
-- Improve grammar and sentence flow, but do not summarize.
+- Improve obvious grammar, repeated wording, and sentence flow, but do not summarize.
 - Use prose for one thought, one message, one contrast, or one correction.
 - Use bullets only for explicit lists, task lists, steps, or clearly separate points.
+- Do not split one continuous idea into multiple bullets.
+- Merge repeated wording into one clear statement instead of restating it.
 - Treat "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
 - Convert spoken punctuation words into punctuation marks, such as "question mark" to "?", "full stop" or "period" to ".", and "comma" to ",".
 - Treat "side note", "by the way", and "in brackets" as asides; keep the text before and after them.
@@ -169,6 +171,11 @@ Example:
 Input: i mean the dashboard is like useful but you know the filters need to be easier to find
 Output:
 The dashboard is useful, but the filters need to be easier to find.
+
+Example:
+Input: i think the form is basically too long and the main issue is the form asks for too many details before people understand why they should finish it
+Output:
+I think the form is too long because it asks for too many details before people understand why they should finish it.
 
 Example:
 Input: how can we make the onboarding email more concise
