@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('voicerefine', {
   getSelectedNativeAsrModel: () => ipcRenderer.invoke('get-selected-native-asr-model'),
   setSelectedNativeAsrModel: (payload) => ipcRenderer.invoke('set-selected-native-asr-model', payload),
   pasteTextIntoActiveApp: (text) => ipcRenderer.invoke('paste-text-into-active-app', text),
+  getRecordingShortcut: () => ipcRenderer.invoke('get-recording-shortcut'),
+  setRecordingShortcut: (accelerator) => ipcRenderer.invoke('set-recording-shortcut', accelerator),
   getRefinementSettings: () => ipcRenderer.invoke('get-refinement-settings'),
   setRefinementSettings: (settings) => ipcRenderer.invoke('set-refinement-settings', settings),
   overlayReady: () => ipcRenderer.send('overlay-ready'),
@@ -20,5 +22,10 @@ contextBridge.exposeInMainWorld('voicerefine', {
     const listener = (_event, command) => handler(command);
     ipcRenderer.on('overlay-command', listener);
     return () => ipcRenderer.removeListener('overlay-command', listener);
+  },
+  onRecordingShortcutChanged: (handler) => {
+    const listener = (_event, accelerator) => handler(accelerator);
+    ipcRenderer.on('recording-shortcut-changed', listener);
+    return () => ipcRenderer.removeListener('recording-shortcut-changed', listener);
   },
 });

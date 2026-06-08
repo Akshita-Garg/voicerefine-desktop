@@ -8,7 +8,15 @@ import { calculateShortcutMaxTokens } from './utils/refinementBudget'
 import { REFINEMENT_MODE_CLEAN, REFINEMENT_MODE_TRANSFORM } from './utils/refinementSettings'
 import './index.css'
 
-const HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
+function formatShortcutLabel(accelerator) {
+  return accelerator
+    .replace(/Command/g, 'Cmd')
+    .replace(/Control/g, 'Ctrl')
+    .replace(/Alt/g, 'Alt')
+    .replace(/\+/g, '+')
+}
+
+const DEFAULT_HOTKEY_LABEL = window.navigator.platform.toLowerCase().includes('mac')
   ? 'Cmd+Shift+Space'
   : 'Ctrl+Shift+Space'
 
@@ -64,6 +72,7 @@ function Overlay() {
   const [status, setStatus] = useState('idle')
   const [elapsed, setElapsed] = useState(0)
   const [transcript, setTranscript] = useState('')
+  const [hotkeyLabel, setHotkeyLabel] = useState(DEFAULT_HOTKEY_LABEL)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -175,6 +184,15 @@ function Overlay() {
   }
 
   useEffect(() => {
+    window.voicerefine?.getRecordingShortcut?.().then(result => {
+      if (result?.accelerator) setHotkeyLabel(formatShortcutLabel(result.accelerator))
+    }).catch(err => {
+      console.warn('[overlay] Could not read recording shortcut', err)
+    })
+    const unsubscribeShortcut = window.voicerefine.onRecordingShortcutChanged?.(accelerator => {
+      if (accelerator) setHotkeyLabel(formatShortcutLabel(accelerator))
+    })
+
     const unsubscribe = window.voicerefine.onOverlayCommand(command => {
       if (command === 'start-recording') void startRecording()
       if (command === 'stop-recording') stopRecording()
@@ -185,6 +203,7 @@ function Overlay() {
     window.voicerefine.overlayReady()
     return () => {
       unsubscribe()
+      unsubscribeShortcut?.()
       cancelRecording()
     }
   }, [])
@@ -205,7 +224,7 @@ function Overlay() {
       : status === 'refining' ? 'Preparing your final text'
       : status === 'paste-error' ? 'Transcript copied. Paste manually with Ctrl+V.'
       : isComplete ? (transcript || 'No speech detected')
-        : `Press ${HOTKEY_LABEL} again to stop recording`
+        : `Press ${hotkeyLabel} again to stop recording`
 
   return (
     <div className="min-h-screen bg-transparent flex items-center justify-center text-[#F7F1EA]">

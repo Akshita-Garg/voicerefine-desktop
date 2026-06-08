@@ -1,5 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import started from 'electron-squirrel-startup';
@@ -12,10 +13,14 @@ if (started) {
   app.quit();
 }
 
-const HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
+const DEFAULT_HOTKEY_ACCELERATOR = process.platform === 'darwin' ? 'Command+Shift+Space' : 'Control+Shift+Space';
+const HOTKEY_ACCELERATOR_OPTIONS = process.platform === 'darwin'
+  ? ['Command+Shift+Space', 'Command+Alt+Space', 'Command+Shift+R', 'Command+Alt+R', 'Command+Shift+D']
+  : ['Control+Shift+Space', 'Control+Alt+Space', 'Control+Shift+R', 'Control+Alt+R', 'Control+Shift+D'];
 const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;
+let hotkeyAccelerator = DEFAULT_HOTKEY_ACCELERATOR;
 let overlayReady = false;
 let overlayRecording = false;
 let overlayProcessing = false;
@@ -28,6 +33,27 @@ let refinementSettings = {
   transformPreset: 'rewrite',
   transformPrompt: '',
 };
+
+function shortcutConfigPath() {
+  return path.join(app.getPath('userData'), 'shortcut-settings.json');
+}
+
+function normalizeHotkeyAccelerator(value) {
+  return HOTKEY_ACCELERATOR_OPTIONS.includes(value) ? value : DEFAULT_HOTKEY_ACCELERATOR;
+}
+
+function readStoredHotkeyAccelerator() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(shortcutConfigPath(), 'utf8'));
+    return normalizeHotkeyAccelerator(parsed?.recordingShortcut);
+  } catch {
+    return DEFAULT_HOTKEY_ACCELERATOR;
+  }
+}
+
+function writeStoredHotkeyAccelerator(accelerator) {
+  fs.writeFileSync(shortcutConfigPath(), JSON.stringify({ recordingShortcut: accelerator }, null, 2));
+}
 
 async function sendPasteShortcut() {
   if (process.platform === 'win32') {
@@ -216,7 +242,7 @@ function toggleRecordingOverlay() {
   showOverlayAndStartRecording();
 }
 
-async function showHotkeyFailureDialog() {
+async function showHotkeyFailureDialog(accelerator = hotkeyAccelerator) {
   const isMac = process.platform === 'darwin';
   const detail = isMac
     ? 'macOS may require Accessibility permission before VoiceRefine can listen for global shortcuts. Open System Settings > Privacy & Security > Accessibility and allow VoiceRefine.'
@@ -225,7 +251,7 @@ async function showHotkeyFailureDialog() {
   const result = await dialog.showMessageBox(mainWindow ?? undefined, {
     type: 'warning',
     title: 'Global hotkey unavailable',
-    message: `VoiceRefine could not register ${HOTKEY_ACCELERATOR}.`,
+    message: `VoiceRefine could not register ${accelerator}.`,
     detail,
     buttons: isMac ? ['Open Accessibility Settings', 'OK'] : ['OK'],
     defaultId: isMac ? 1 : 0,
@@ -237,21 +263,46 @@ async function showHotkeyFailureDialog() {
   }
 }
 
-function registerGlobalHotkey() {
-  console.log(`[hotkey] Registering ${HOTKEY_ACCELERATOR} on ${process.platform}`);
-  const registered = globalShortcut.register(HOTKEY_ACCELERATOR, () => {
-    console.log(`[hotkey] ${HOTKEY_ACCELERATOR} pressed`);
+function registerRecordingHotkey(nextAccelerator, { showDialog = true } = {}) {
+  const previousAccelerator = hotkeyAccelerator;
+  const accelerator = normalizeHotkeyAccelerator(nextAccelerator);
+  if (previousAccelerator && globalShortcut.isRegistered(previousAccelerator)) {
+    globalShortcut.unregister(previousAccelerator);
+  }
+
+  hotkeyAccelerator = accelerator;
+  console.log(`[hotkey] Registering ${hotkeyAccelerator} on ${process.platform}`);
+  const registered = globalShortcut.register(hotkeyAccelerator, () => {
+    console.log(`[hotkey] ${hotkeyAccelerator} pressed`);
     toggleRecordingOverlay();
     mainWindow?.webContents.send('voice-refine-hotkey-pressed');
   });
 
-  const isRegistered = globalShortcut.isRegistered(HOTKEY_ACCELERATOR);
+  const isRegistered = globalShortcut.isRegistered(hotkeyAccelerator);
   if (registered) {
-    console.log(`[hotkey] Registered ${HOTKEY_ACCELERATOR}`, { isRegistered });
-  } else {
-    console.warn(`[hotkey] Failed to register ${HOTKEY_ACCELERATOR}`, { isRegistered });
-    void showHotkeyFailureDialog();
+    writeStoredHotkeyAccelerator(hotkeyAccelerator);
+    overlayWindow?.webContents.send('recording-shortcut-changed', hotkeyAccelerator);
+    console.log(`[hotkey] Registered ${hotkeyAccelerator}`, { isRegistered });
+    return { ok: true, accelerator: hotkeyAccelerator, isRegistered };
   }
+
+  console.warn(`[hotkey] Failed to register ${hotkeyAccelerator}`, { isRegistered });
+  const failedAccelerator = hotkeyAccelerator;
+  if (previousAccelerator && previousAccelerator !== failedAccelerator) {
+    hotkeyAccelerator = previousAccelerator;
+    globalShortcut.register(previousAccelerator, () => {
+      console.log(`[hotkey] ${previousAccelerator} pressed`);
+      toggleRecordingOverlay();
+      mainWindow?.webContents.send('voice-refine-hotkey-pressed');
+    });
+  }
+
+  if (showDialog) void showHotkeyFailureDialog(failedAccelerator);
+  return { ok: false, accelerator: hotkeyAccelerator, failedAccelerator, isRegistered: false };
+}
+
+function registerGlobalHotkeys() {
+  registerRecordingHotkey(readStoredHotkeyAccelerator());
 
   const cancelRegistered = globalShortcut.register(CANCEL_ACCELERATOR, () => {
     if (overlayWindow?.isVisible()) cancelOverlayRecording();
@@ -295,6 +346,16 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('paste-text-into-active-app', async (_event, text) => {
     return await pasteTextIntoActiveApp(text);
+  });
+  ipcMain.handle('get-recording-shortcut', async () => {
+    return {
+      accelerator: hotkeyAccelerator,
+      options: HOTKEY_ACCELERATOR_OPTIONS,
+      defaultAccelerator: DEFAULT_HOTKEY_ACCELERATOR,
+    };
+  });
+  ipcMain.handle('set-recording-shortcut', async (_event, accelerator) => {
+    return registerRecordingHotkey(accelerator, { showDialog: false });
   });
   ipcMain.handle('get-refinement-settings', async () => {
     return refinementSettings;
@@ -352,7 +413,7 @@ app.whenReady().then(() => {
 
   createWindow();
   createOverlayWindow();
-  registerGlobalHotkey();
+  registerGlobalHotkeys();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

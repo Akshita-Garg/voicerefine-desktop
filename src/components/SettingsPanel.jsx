@@ -48,6 +48,10 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [provider, setProvider] = useState('builtin')
   const [apiKey, setApiKey] = useState('')
   const [nativeAsrModel, setNativeAsrModel] = useState(NATIVE_ASR_MODEL_PARAKEET_Q4)
+  const [recordingShortcut, setRecordingShortcut] = useState('')
+  const [recordingShortcutOptions, setRecordingShortcutOptions] = useState([])
+  const [shortcutStatus, setShortcutStatus] = useState('idle')
+  const [shortcutError, setShortcutError] = useState('')
   const [transformPromptMode, setTransformPromptMode] = useState(TRANSFORM_PROMPT_MODE_PRESET)
   const [transformPromptEditorOpen, setTransformPromptEditorOpen] = useState(false)
   const [clarityPrompt, setClarityPrompt] = useState('')
@@ -63,6 +67,12 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setProvider(stored === 'browser' || stored === 'ollama' ? 'builtin' : stored)
     setApiKey(localStorage.getItem('vr_api_key') ?? '')
     setNativeAsrModel(currentNativeAsrModel())
+    window.voicerefine?.getRecordingShortcut?.().then(result => {
+      setRecordingShortcut(result?.accelerator ?? '')
+      setRecordingShortcutOptions(result?.options ?? [])
+    }).catch(err => {
+      console.warn('[settings] Could not load recording shortcut', err)
+    })
     const storedTransformPromptMode = readTransformPromptMode()
     setTransformPromptMode(storedTransformPromptMode)
     setTransformPromptEditorOpen(storedTransformPromptMode === TRANSFORM_PROMPT_MODE_CUSTOM)
@@ -71,6 +81,8 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setAsrModelStatus('idle')
     setKeyStatus('idle')
     setKeyError('')
+    setShortcutStatus('idle')
+    setShortcutError('')
     setOverride(false)
   }, [open])
 
@@ -144,20 +156,51 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     }
   }
 
-  const handleSave = () => {
-    localStorage.setItem('vr_provider', provider)
-    localStorage.setItem('vr_native_asr_model', nativeAsrModel)
-    void syncSelectedNativeAsrModel(nativeAsrModel)
-    if (needsKey) {
-      localStorage.setItem('vr_api_key', apiKey)
-    } else {
-      localStorage.removeItem('vr_api_key')
+  const formatShortcutLabel = (accelerator) => accelerator
+    .replace(/Command/g, 'Cmd')
+    .replace(/Control/g, 'Ctrl')
+    .replace(/Alt/g, 'Alt')
+    .replace(/\+/g, ' + ')
+
+  const handleSave = async () => {
+    setShortcutStatus('saving')
+    setShortcutError('')
+    try {
+      if (recordingShortcut) {
+        const shortcutResult = await window.voicerefine?.setRecordingShortcut?.(recordingShortcut)
+        if (shortcutResult && !shortcutResult.ok) {
+          setShortcutStatus('error')
+          setShortcutError(`${formatShortcutLabel(shortcutResult.failedAccelerator)} is unavailable. VoiceRefine kept ${formatShortcutLabel(shortcutResult.accelerator)}.`)
+          setRecordingShortcut(shortcutResult.accelerator)
+          return
+        }
+      }
+    } catch (err) {
+      setShortcutStatus('error')
+      setShortcutError(err?.message ?? 'Could not update the recording shortcut.')
+      return
     }
-    localStorage.setItem('vr_transform_prompt_mode', transformPromptMode)
-    localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
-    localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
-    onSaved?.()
-    onClose()
+
+    try {
+      localStorage.setItem('vr_provider', provider)
+      localStorage.setItem('vr_native_asr_model', nativeAsrModel)
+      void syncSelectedNativeAsrModel(nativeAsrModel)
+      if (needsKey) {
+        localStorage.setItem('vr_api_key', apiKey)
+      } else {
+        localStorage.removeItem('vr_api_key')
+      }
+      localStorage.setItem('vr_transform_prompt_mode', transformPromptMode)
+      localStorage.setItem(promptStorageKeyForPreset('clarity'), clarityPrompt.trim() || defaultPromptForPreset('clarity'))
+      localStorage.setItem(promptStorageKeyForPreset('structure'), structurePrompt.trim() || defaultPromptForPreset('structure'))
+      setShortcutStatus('idle')
+      onSaved?.()
+      onClose()
+    } catch (err) {
+      setShortcutStatus('error')
+      setShortcutError(err?.message ?? 'Could not save settings.')
+      return
+    }
   }
 
   const handleReset = () => {
@@ -285,6 +328,32 @@ export function SettingsPanel({ open, onClose, onSaved }) {
           </section>
 
           <section>
+            <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Shortcut</h3>
+            <label htmlFor="recording-shortcut" className="flex flex-col gap-2">
+              <span className="text-sm text-[#3A2F2A] font-medium">Start and stop recording</span>
+              <select
+                id="recording-shortcut"
+                value={recordingShortcut}
+                onChange={e => {
+                  setRecordingShortcut(e.target.value)
+                  setShortcutStatus('idle')
+                  setShortcutError('')
+                }}
+                className="w-full rounded-lg px-3 py-2 text-sm text-[#3A2F2A] outline-none border border-[rgba(58,47,42,0.08)] focus:border-[#7FAF8F]/50"
+                style={{ background: '#E6CFC7' }}
+              >
+                {recordingShortcutOptions.map(option => (
+                  <option key={option} value={option}>{formatShortcutLabel(option)}</option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-2 text-xs text-[#8A766E] leading-snug">
+              This shortcut works globally and toggles the overlay recording in other apps.
+            </p>
+            {shortcutStatus === 'error' && <p className="mt-2 text-xs text-red-700">{shortcutError}</p>}
+          </section>
+
+          <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transform Prompts</h3>
             <div className="flex flex-col gap-3">
               <p className="text-xs text-[#8A766E] leading-snug">
@@ -374,10 +443,10 @@ export function SettingsPanel({ open, onClose, onSaved }) {
         <div className="px-6 py-4 border-t border-[rgba(58,47,42,0.08)] flex flex-col gap-3">
           <button
             onClick={handleSave}
-            disabled={!canSave}
+            disabled={!canSave || shortcutStatus === 'saving'}
             className="w-full py-2 rounded-xl text-sm font-medium bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5] transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save
+            {shortcutStatus === 'saving' ? 'Saving...' : 'Save'}
           </button>
           <button
             onClick={handleReset}
