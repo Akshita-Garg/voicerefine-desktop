@@ -26,7 +26,7 @@ function now() {
 
 function getModelPath() {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'models', 'gemma-3-1b-it-Q4_K_M.gguf');
+    return path.join(process.resourcesPath, 'gemma-3-1b-it-Q4_K_M.gguf');
   }
   return path.join(app.getAppPath(), 'resources', 'models', 'gemma-3-1b-it-Q4_K_M.gguf');
 }

@@ -4,19 +4,31 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    // Bundle local models and sidecar binaries so offline ASR/refinement works.
+    executableName: 'VoiceRefine',
+    icon: 'resources/icons/icon',
+    appCopyright: `Copyright (c) ${new Date().getFullYear()} Akshita Garg`,
+    win32metadata: {
+      CompanyName: 'VoiceRefine',
+      FileDescription: 'VoiceRefine',
+      OriginalFilename: 'VoiceRefine.exe',
+      ProductName: 'VoiceRefine',
+      InternalName: 'VoiceRefine',
+    },
+    // Bundle only the current user-facing local models and Windows sidecar binary.
     // extraResource items land in process.resourcesPath at runtime.
-    extraResource: ['resources/models', 'resources/bin'],
+    extraResource: [
+      'resources/models/gemma-3-1b-it-Q4_K_M.gguf',
+      'resources/models/parakeet-tdt-0.6b-v3-GGUF',
+      'resources/models/cohere-transcribe-03-2026-GGUF',
+      'resources/models/sherpa-onnx-whisper-tiny.en',
+      'resources/bin/crispasr-windows-x86_64-cpu',
+    ],
   },
   rebuildConfig: {},
   makers: [
     {
-      name: '@electron-forge/maker-squirrel',
-      config: {},
-    },
-    {
       name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
+      platforms: ['darwin', 'win32'],
     },
     {
       name: '@electron-forge/maker-deb',

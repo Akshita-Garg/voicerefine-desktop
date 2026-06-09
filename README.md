@@ -38,7 +38,7 @@ Refinement can run through:
 
 - The built-in local Gemma path using `node-llama-cpp`
 - External providers configured in Settings
-- A transcript-only mode with refinement disabled
+- Clean mode, which performs fast non-LLM cleanup without loading Gemma
 
 The built-in path is tuned for short editing tasks like:
 
@@ -101,6 +101,20 @@ Package the app:
 ```bash
 npm run package
 ```
+
+Create Windows distributable artifacts:
+
+```bash
+npm run make
+```
+
+On Windows, release artifacts are written under:
+
+```text
+out/make/zip/win32/x64
+```
+
+The unsigned Windows ZIP is useful for local testing and early private sharing. Users can unzip it and run `VoiceRefine.exe`. Public distribution still needs a Windows code-signing certificate and, later, a signed installer to reduce SmartScreen warnings.
 
 Run the refinement benchmark dry-run:
 

@@ -24,12 +24,12 @@ function now() {
 }
 
 function getModelRoot() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'models');
+  if (app.isPackaged) return process.resourcesPath;
   return path.join(app.getAppPath(), 'resources', 'models');
 }
 
 function getBinRoot() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'bin');
+  if (app.isPackaged) return process.resourcesPath;
   return path.join(app.getAppPath(), 'resources', 'bin');
 }
 
