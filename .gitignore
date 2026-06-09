@@ -93,6 +93,7 @@ typings/
 
 # Electron-Forge
 out/
+dist/
 
 # Bundled local model artifacts are kept outside normal Git history.
 # Use Git LFS or download/copy these into resources/models before packaging.

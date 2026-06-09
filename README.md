@@ -116,6 +116,14 @@ out/make/zip/win32/x64
 
 The unsigned Windows ZIP is useful for local testing and early private sharing. Users can unzip it and run `VoiceRefine.exe`. Public distribution still needs a Windows code-signing certificate and, later, a signed installer to reduce SmartScreen warnings.
 
+Create the Windows web installer:
+
+```bash
+npm run make:win:installer
+```
+
+See [Windows Release Notes](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/docs/windows-release.md) for installer artifacts, model delivery notes, and signing requirements.
+
 Run the refinement benchmark dry-run:
 
 ```bash
