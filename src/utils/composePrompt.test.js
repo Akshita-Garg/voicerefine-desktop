@@ -51,11 +51,6 @@ describe('transform presets', () => {
 })
 
 describe('normalizeTranscriptForTransform', () => {
-  it('keeps only the replacement phrase after scratch that', () => {
-    expect(normalizeTranscriptForTransform('send the invoice to ops scratch that send it to finance before the end of the day'))
-      .toBe('send it to finance before the end of the day')
-  })
-
   it('normalizes bracket cues to side-note cues', () => {
     expect(normalizeTranscriptForTransform('the quote is fine in brackets check whether this includes tax'))
       .toBe('the quote is fine side note check whether this includes tax')
@@ -124,7 +119,6 @@ describe('transform prompt presets', () => {
     expect(prompt).toContain('four hundred and four errors')
     expect(prompt).toContain('why are users leaving after signup')
     expect(prompt).toContain('new paragraph the second concern is privacy')
-    expect(prompt).toContain('send it tomorrow scratch that send it today')
     expect(prompt).toContain('meeting is on friday actually make that monday')
     expect(prompt).toContain('message arjun that the demo is at two')
     expect(prompt).toContain('Output:')

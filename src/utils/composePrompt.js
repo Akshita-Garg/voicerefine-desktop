@@ -19,7 +19,7 @@ Do:
 - For spoken lists, put each item on its own bullet. Remove list marker words like "one", "two", and "three" from the final items.
 - Treat phrases like "make a list" and "numbered list" as formatting instructions, not content.
 - Put only the side comment in parentheses when the speaker says "side note", "quick aside", "by the way", "in brackets", or "in parentheses". Continue the main sentence after the parenthesis if the speaker continues.
-- Apply obvious corrections like "actually", "no wait", or "scratch that".
+- Apply obvious corrections like "actually" and "no wait".
 - Convert obvious spoken technical symbols into typed text, such as "slash v one slash audio" becoming "/v1/audio".
 - Convert obvious spoken technical numbers into typed text, such as "four hundred and four errors" becoming "404 errors".
 - Preserve questions as questions. Do not turn a dictated question into an answer or statement.
@@ -105,11 +105,6 @@ Output:
 The second concern is privacy because users need to know where their data goes.
 
 Example:
-Input: send it tomorrow scratch that send it today before five
-Output:
-Send it today before five.
-
-Example:
 Input: tell nina the meeting is on friday actually make that monday because friday is a holiday
 Output:
 Tell Nina the meeting is on Monday because Friday is a holiday.
@@ -143,7 +138,7 @@ Rules:
 - Treat "make a list", "numbered list", and "new paragraph" as formatting instructions, not content.
 - Convert spoken punctuation words into punctuation marks, such as "question mark" to "?", "full stop" or "period" to ".", and "comma" to ",".
 - Treat "side note", "by the way", and "in brackets" as asides; keep the text before and after them.
-- Apply corrections like "actually", "no wait", and "scratch that".
+- Apply corrections like "actually" and "no wait".
 - Convert obvious technical dictation, such as "slash v one slash audio" to "/v1/audio" and "four hundred and four errors" to "404 errors".
 
 Never:
@@ -216,7 +211,6 @@ export function defaultPromptForPreset(preset) {
 
 export function normalizeTranscriptForTransform(transcript) {
   return transcript
-    .replace(/^.*\bscratch that\b[,.;:!?\s]*/i, '')
     .replace(/\bin brackets\b/gi, 'side note')
     .replace(/\bfour hundred and four errors\b/gi, '404 errors')
     .replace(/\bfive hundred errors\b/gi, '500 errors')
