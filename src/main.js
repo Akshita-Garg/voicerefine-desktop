@@ -1,11 +1,14 @@
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, screen, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, net, screen, session, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import started from 'electron-squirrel-startup';
-import { preloadNativeAsrModel, transcribeNative, unloadNativeAsrModels } from './main/asr.js';
+import { isCohereModelAvailable, preloadNativeAsrModel, transcribeNative, unloadNativeAsrModels } from './main/asr.js';
 import { clearUnloadTimer, refineBuiltin, unloadBuiltinModel, warmBuiltin } from './main/refine.js';
+
+const COHERE_MODEL_DOWNLOAD_URL = 'https://github.com/Akshita-Garg/voicerefine-desktop/releases/download/v1.0.0/cohere-transcribe-q4_k.gguf';
+let cohereDownloadActive = false;
 
 const execFileAsync = promisify(execFile);
 
@@ -420,6 +423,51 @@ app.whenReady().then(() => {
     setTimeout(() => {
       if (!overlayRecording) overlayWindow?.hide();
     }, 1400);
+  });
+  ipcMain.handle('check-cohere-model', () => {
+    return { available: isCohereModelAvailable() };
+  });
+  ipcMain.handle('download-cohere-model', async (event) => {
+    if (cohereDownloadActive) return { ok: false, reason: 'already-downloading' };
+    cohereDownloadActive = true;
+
+    const destDir = path.join(app.getPath('userData'), 'models', 'cohere-transcribe-03-2026-GGUF');
+    const tempPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf.part');
+    const finalPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf');
+
+    try {
+      await fs.promises.mkdir(destDir, { recursive: true });
+      const response = await net.fetch(COHERE_MODEL_DOWNLOAD_URL);
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+
+      const total = parseInt(response.headers.get('content-length') || '0', 10);
+      let downloaded = 0;
+      const writeStream = fs.createWriteStream(tempPath);
+      const reader = response.body.getReader();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        await new Promise((resolve, reject) => writeStream.write(Buffer.from(value), err => err ? reject(err) : resolve()));
+        downloaded += value.length;
+        event.sender.send('cohere-download-progress', {
+          percent: total > 0 ? Math.round((downloaded / total) * 100) : 0,
+          downloaded,
+          total,
+        });
+      }
+
+      await new Promise((resolve, reject) => writeStream.end(err => err ? reject(err) : resolve()));
+      await fs.promises.rename(tempPath, finalPath);
+      console.log('[cohere-download] complete', { path: finalPath });
+      return { ok: true };
+    } catch (err) {
+      console.warn('[cohere-download] failed', err);
+      await fs.promises.unlink(tempPath).catch(() => {});
+      return { ok: false, reason: err.message };
+    } finally {
+      cohereDownloadActive = false;
+    }
   });
 
   createWindow();

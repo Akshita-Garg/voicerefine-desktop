@@ -46,7 +46,13 @@ function getCohereQ4ModelPath() {
     return process.env.VOICEREFINE_CRISPASR_COHERE_MODEL;
   }
 
+  const userDataPath = path.join(app.getPath('userData'), 'models', 'cohere-transcribe-03-2026-GGUF', 'cohere-transcribe-q4_k.gguf');
+  if (fs.existsSync(userDataPath)) return userDataPath;
   return path.join(getModelRoot(), 'cohere-transcribe-03-2026-GGUF', 'cohere-transcribe-q4_k.gguf');
+}
+
+export function isCohereModelAvailable() {
+  return fs.existsSync(getCohereQ4ModelPath());
 }
 
 function getParakeetQ4ModelPath() {

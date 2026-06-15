@@ -19,7 +19,6 @@ module.exports = {
     extraResource: [
       'resources/models/gemma-3-1b-it-Q4_K_M.gguf',
       'resources/models/parakeet-tdt-0.6b-v3-GGUF',
-      'resources/models/cohere-transcribe-03-2026-GGUF',
       'resources/models/sherpa-onnx-whisper-tiny.en',
       'resources/bin/crispasr-windows-x86_64-cpu',
     ],

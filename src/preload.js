@@ -28,4 +28,11 @@ contextBridge.exposeInMainWorld('voicerefine', {
     ipcRenderer.on('recording-shortcut-changed', listener);
     return () => ipcRenderer.removeListener('recording-shortcut-changed', listener);
   },
+  checkCohereModel: () => ipcRenderer.invoke('check-cohere-model'),
+  downloadCohereModel: () => ipcRenderer.invoke('download-cohere-model'),
+  onCohereDownloadProgress: (handler) => {
+    const listener = (_event, data) => handler(data);
+    ipcRenderer.on('cohere-download-progress', listener);
+    return () => ipcRenderer.removeListener('cohere-download-progress', listener);
+  },
 });

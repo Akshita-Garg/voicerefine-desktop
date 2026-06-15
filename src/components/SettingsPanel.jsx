@@ -57,6 +57,10 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [clarityPrompt, setClarityPrompt] = useState('')
   const [structurePrompt, setStructurePrompt] = useState('')
   const [asrModelStatus, setAsrModelStatus] = useState('idle')
+  const [cohereAvailable, setCohereAvailable] = useState(true)
+  const [cohereDownloading, setCohereDownloading] = useState(false)
+  const [cohereDownloadPercent, setCohereDownloadPercent] = useState(0)
+  const [cohereDownloadError, setCohereDownloadError] = useState('')
   const [keyStatus, setKeyStatus] = useState('idle')
   const [keyError, setKeyError] = useState('')
   const shortcutButtonRef = useRef(null)
@@ -83,6 +87,12 @@ export function SettingsPanel({ open, onClose, onSaved }) {
       ? readStoredPromptDraftForPreset('structure')
       : defaultPromptForPreset('structure'))
     setAsrModelStatus('idle')
+    setCohereDownloading(false)
+    setCohereDownloadPercent(0)
+    setCohereDownloadError('')
+    window.voicerefine?.checkCohereModel?.().then(result => {
+      setCohereAvailable(result?.available ?? true)
+    }).catch(() => {})
     setKeyStatus('idle')
     setKeyError('')
     setShortcutStatus('idle')
@@ -171,6 +181,28 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     localStorage.removeItem(promptStorageKeyForPreset('structure'))
     localStorage.removeItem('vr_transform_prompt')
     onSaved?.({ warm: false })
+  }
+
+  const handleDownloadCohere = async () => {
+    setCohereDownloading(true)
+    setCohereDownloadPercent(0)
+    setCohereDownloadError('')
+    const unsubscribe = window.voicerefine?.onCohereDownloadProgress?.(({ percent }) => {
+      setCohereDownloadPercent(percent)
+    })
+    try {
+      const result = await window.voicerefine?.downloadCohereModel?.()
+      if (result?.ok) {
+        setCohereAvailable(true)
+      } else {
+        setCohereDownloadError(result?.reason ?? 'Download failed.')
+      }
+    } catch (err) {
+      setCohereDownloadError(err?.message ?? 'Download failed.')
+    } finally {
+      unsubscribe?.()
+      setCohereDownloading(false)
+    }
   }
 
   const handleNativeAsrModelChange = async (model) => {
@@ -373,25 +405,57 @@ export function SettingsPanel({ open, onClose, onSaved }) {
           <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transcription</h3>
             <div className="flex flex-col gap-2">
-              {NATIVE_ASR_MODEL_OPTIONS.map(({ value, label, badge, description }) => (
-                <label key={value} className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="native-asr-model"
-                    value={value}
-                    checked={nativeAsrModel === value}
-                    onChange={() => handleNativeAsrModelChange(value)}
-                    className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-                  />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
-                      {label}
-                      {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
+              {NATIVE_ASR_MODEL_OPTIONS.map(({ value, label, badge, description }) => {
+                const isPrecise = value === NATIVE_ASR_MODEL_COHERE_Q4
+                const preciseUnavailable = isPrecise && !cohereAvailable
+                return (
+                  <label key={value} className={`flex items-start gap-3 ${preciseUnavailable ? 'cursor-default opacity-60' : 'cursor-pointer'}`}>
+                    <input
+                      type="radio"
+                      name="native-asr-model"
+                      value={value}
+                      checked={nativeAsrModel === value}
+                      onChange={() => handleNativeAsrModelChange(value)}
+                      disabled={preciseUnavailable}
+                      className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                    />
+                    <span className="flex flex-col gap-1 flex-1">
+                      <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
+                        {label}
+                        {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
+                      </span>
+                      <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
+                      {isPrecise && !cohereAvailable && !cohereDownloading && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={handleDownloadCohere}
+                            className="text-xs px-2.5 py-1 rounded-lg border border-[rgba(58,47,42,0.12)] text-[#6B5B52] hover:text-[#3A2F2A] hover:border-[rgba(58,47,42,0.2)] transition-colors"
+                            style={{ background: '#E6CFC7' }}
+                          >
+                            Download model (1.5 GB)
+                          </button>
+                          {cohereDownloadError && <span className="text-xs text-red-700">{cohereDownloadError}</span>}
+                        </div>
+                      )}
+                      {isPrecise && cohereDownloading && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-[#8A766E]">Downloading…</span>
+                            <span className="text-xs text-[#8A766E]">{cohereDownloadPercent}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(58,47,42,0.1)' }}>
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{ width: `${cohereDownloadPercent}%`, background: '#7FAF8F' }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </span>
-                    <span className="text-xs text-[#8A766E] leading-snug">{description}</span>
-                  </span>
-                </label>
-              ))}
+                  </label>
+                )
+              })}
             </div>
             {asrModelStatus === 'loading' && <p className="mt-2 text-xs text-[#8A766E]">Loading selected transcription model...</p>}
             {asrModelStatus === 'ready' && <p className="mt-2 text-xs text-[#5C8F70]">Selected transcription model is ready.</p>}
