@@ -30,6 +30,11 @@
     "directories": {
       "output": "dist"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "Akshita-Garg",
+      "repo": "voicerefine-desktop"
+    },
     "nsis": {
       "artifactName": "VoiceRefineSetup-${version}.${ext}",
       "oneClick": false,
