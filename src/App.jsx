@@ -238,34 +238,17 @@ function App() {
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
         <div
-          className="w-full max-w-5xl rounded-2xl border border-[#C96F3B]/25 px-5 py-3"
-          style={{ background: 'rgba(201,111,59,0.08)' }}
+          className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/30 px-5 py-3"
+          style={{ background: 'rgba(127,175,143,0.12)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
         >
-          <p className="text-sm text-[#7A4A2E] leading-relaxed">
+          <p className="text-sm text-[#4A7A5E] leading-relaxed">
             VoiceRefine works in <strong>any app</strong>. Press{' '}
-            <kbd className="inline-flex items-center mx-0.5 px-2 py-0.5 rounded-md border border-[#C96F3B]/35 bg-[#F4ECE3] text-[#7A4A2E] text-xs font-semibold tracking-tight">
+            <kbd className="inline-flex items-center mx-0.5 px-2 py-0.5 rounded-md border border-[#7FAF8F]/45 bg-[#EAF1EC] text-[#3F6B50] text-xs font-semibold tracking-tight">
               {formatShortcutLabel(recordingShortcut)}
             </kbd>{' '}
             anywhere to dictate straight into the window you're typing in. This window is just for reviewing transcripts and tuning settings — you don't need it open to use VoiceRefine.
           </p>
         </div>
-
-        {!tipDismissed && (
-          <div
-            className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-3"
-            style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[#4A7A5E]">Tip: Smart Format keeps your voice. Polish & Organize rewrites and structures longer thoughts.</span>
-              <button
-                onClick={() => setTipDismissed(true)}
-                className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="flex flex-col items-center gap-3">
           <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} />
@@ -341,6 +324,23 @@ function App() {
               })}
             </div>
           </div>
+
+          {!tipDismissed && (
+            <div
+              className="w-full rounded-2xl border border-[#7FAF8F]/25 px-5 py-3"
+              style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-[#4A7A5E]">Tip: Smart Format keeps your voice. Polish &amp; Organize rewrites and structures longer thoughts.</span>
+                <button
+                  onClick={() => setTipDismissed(true)}
+                  className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
             <div
