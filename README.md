@@ -51,7 +51,7 @@ API keys are stored only in `localStorage` on your device — never sent to any 
 
 ## Global Shortcut Overlay
 
-The default shortcut is **Ctrl+Space**. Change it during onboarding or in Settings.
+The default shortcut is **Ctrl+Shift+Space**. Change it during onboarding or in Settings.
 
 **Flow:**
 

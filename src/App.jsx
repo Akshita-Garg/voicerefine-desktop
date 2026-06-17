@@ -83,7 +83,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [refinementMode, setRefinementMode] = useState(readRefinementMode)
   const [transformPreset, setTransformPreset] = useState(readTransformPreset)
-  const [recordingShortcut, setRecordingShortcut] = useState('Control+Space')
+  const [recordingShortcut, setRecordingShortcut] = useState('Control+Shift+Space')
   const [closeOptionsOpen, setCloseOptionsOpen] = useState(false)
 
   const refreshRecordingShortcut = useCallback(() => {

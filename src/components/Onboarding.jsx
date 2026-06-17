@@ -73,8 +73,8 @@ function Step1({ refinementMode, onSelect, onContinue }) {
 }
 
 function ShortcutStep({ onContinue }) {
-  const [shortcut, setShortcut] = useState('Control+Space')
-  const [defaultShortcut, setDefaultShortcut] = useState('Control+Space')
+  const [shortcut, setShortcut] = useState('Control+Shift+Space')
+  const [defaultShortcut, setDefaultShortcut] = useState('Control+Shift+Space')
   const [capturing, setCapturing] = useState(false)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
@@ -82,7 +82,7 @@ function ShortcutStep({ onContinue }) {
 
   useEffect(() => {
     window.voicerefine?.getRecordingShortcut?.().then(result => {
-      const nextDefault = result?.defaultAccelerator ?? 'Control+Space'
+      const nextDefault = result?.defaultAccelerator ?? 'Control+Shift+Space'
       setDefaultShortcut(nextDefault)
       setShortcut(result?.accelerator ?? nextDefault)
     }).catch(err => {

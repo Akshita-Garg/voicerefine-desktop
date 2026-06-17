@@ -23,7 +23,10 @@ if (!hasSingleInstanceLock) {
   app.quit();
 }
 
-const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Space';
+// Ctrl+Space is consumed by the Windows input-method switcher when 2+ input
+// methods are installed (common on multilingual setups), so it never reaches
+// the app. Ctrl+Shift+Space is a reliable default.
+const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Shift+Space';
 const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;

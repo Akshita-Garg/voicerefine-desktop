@@ -16,7 +16,7 @@ function formatShortcutLabel(accelerator) {
     .replace(/\+/g, '+')
 }
 
-const DEFAULT_HOTKEY_LABEL = 'Ctrl+Space'
+const DEFAULT_HOTKEY_LABEL = 'Ctrl+Shift+Space'
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
