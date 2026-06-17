@@ -81,6 +81,7 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
           ...(system?.trim() ? [{ role: 'system', content: system }] : []),
           { role: 'user', content: user },
         ],
+        ...(Number.isInteger(maxTokens) ? { max_tokens: maxTokens } : {}),
         stream: false,
       }),
     })
@@ -97,9 +98,9 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
     throw new Error(`Provider error: ${detail}`)
   }
 
-  const data = await response.json()
+  const data = await response.json().catch(() => null)
   const content = data?.choices?.[0]?.message?.content
-  if (!content) throw new Error('Unexpected response format from provider')
+  if (!content) throw new Error('Provider returned an unreadable or empty response.')
   return finalizeTransformOutput(content)
 }
 

@@ -210,7 +210,7 @@ export function defaultPromptForPreset(preset) {
 }
 
 export function normalizeTranscriptForTransform(transcript) {
-  return transcript
+  return (transcript ?? '')
     .replace(/\bin brackets\b/gi, 'side note')
     .replace(/\bfour hundred and four errors\b/gi, '404 errors')
     .replace(/\bfive hundred errors\b/gi, '500 errors')

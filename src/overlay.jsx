@@ -76,6 +76,10 @@ function Overlay() {
   const chunksRef = useRef([])
   const startedAtRef = useRef(null)
   const timerRef = useRef(null)
+  // Monotonic id for the current recording session. Bumped on each start and on
+  // cancel so an in-flight transcription can detect it was superseded/cancelled.
+  const sessionRef = useRef(0)
+  const startingRef = useRef(false)
 
   const cleanupRecorder = () => {
     clearInterval(timerRef.current)
@@ -86,7 +90,9 @@ function Overlay() {
   }
 
   const startRecording = async () => {
-    if (recorderRef.current?.state === 'recording') return
+    if (recorderRef.current?.state === 'recording' || startingRef.current) return
+    startingRef.current = true
+    const session = ++sessionRef.current
 
     setStatus('starting')
     setElapsed(0)
@@ -95,6 +101,12 @@ function Overlay() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Cancelled or superseded while waiting for mic permission — release the
+      // stream we just acquired rather than leaking a live mic track.
+      if (sessionRef.current !== session) {
+        stream.getTracks().forEach(track => track.stop())
+        return
+      }
       streamRef.current = stream
 
       const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {}
@@ -131,6 +143,10 @@ function Overlay() {
             console.warn('[overlay] refinement failed, pasting transcript', err)
           }
 
+          // Cancelled (Esc) or a new recording started while we were busy — drop
+          // this result so we don't paste stale text or clobber the new session.
+          if (sessionRef.current !== session) return
+
           setTranscript(output)
           setStatus('complete')
           window.voicerefine.overlayTranscriptionComplete({
@@ -144,6 +160,7 @@ function Overlay() {
             durationMs: Date.now() - startedAt,
           })
         } catch (err) {
+          if (sessionRef.current !== session) return
           setStatus('error')
           window.voicerefine.overlayRecordingFailed(err?.message ?? 'Transcription failed')
         }
@@ -157,9 +174,13 @@ function Overlay() {
         setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000))
       }, 250)
     } catch (err) {
-      cleanupRecorder()
-      setStatus('error')
-      window.voicerefine.overlayRecordingFailed(err?.message ?? 'Microphone unavailable')
+      if (sessionRef.current === session) {
+        cleanupRecorder()
+        setStatus('error')
+        window.voicerefine.overlayRecordingFailed(err?.message ?? 'Microphone unavailable')
+      }
+    } finally {
+      startingRef.current = false
     }
   }
 
@@ -171,6 +192,7 @@ function Overlay() {
   }
 
   const cancelRecording = () => {
+    sessionRef.current++ // invalidate any in-flight session (recording or transcribing)
     if (recorderRef.current?.state === 'recording') {
       recorderRef.current.onstop = null
       recorderRef.current.stop()

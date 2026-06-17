@@ -145,6 +145,13 @@ const createWindow = () => {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // The overlay is a hidden helper window that otherwise keeps the app alive
+    // (window-all-closed never fires), leaving a headless process holding the
+    // global hotkey with no way to quit. Tear it down so the app exits cleanly.
+    if (process.platform !== 'darwin') {
+      if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.destroy();
+      overlayWindow = null;
+    }
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -389,6 +396,9 @@ app.whenReady().then(() => {
     };
     return refinementSettings;
   });
+  ipcMain.handle('quit-app', () => {
+    app.quit();
+  });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
     if (pendingOverlayCommand) {
@@ -408,6 +418,13 @@ app.whenReady().then(() => {
     console.log('[overlay] recording stopped', metadata);
   });
   ipcMain.on('overlay-transcription-complete', async (_event, payload) => {
+    // If the session was cancelled (Esc) while transcription was still running,
+    // overlayProcessing was already cleared — drop this stale result so we don't
+    // paste unwanted text into whatever app now has focus.
+    if (!overlayProcessing) {
+      console.log('[overlay] dropping cancelled/stale transcription completion');
+      return;
+    }
     overlayProcessing = false;
     console.log('[overlay] transcription complete', payload);
     try {
@@ -440,6 +457,8 @@ app.whenReady().then(() => {
     const tempPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf.part');
     const finalPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf');
 
+    let writeStream = null;
+    let reader = null;
     try {
       await fs.promises.mkdir(destDir, { recursive: true });
       const response = await net.fetch(COHERE_MODEL_DOWNLOAD_URL);
@@ -447,8 +466,8 @@ app.whenReady().then(() => {
 
       const total = parseInt(response.headers.get('content-length') || '0', 10);
       let downloaded = 0;
-      const writeStream = fs.createWriteStream(tempPath);
-      const reader = response.body.getReader();
+      writeStream = fs.createWriteStream(tempPath);
+      reader = response.body.getReader();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -463,11 +482,18 @@ app.whenReady().then(() => {
       }
 
       await new Promise((resolve, reject) => writeStream.end(err => err ? reject(err) : resolve()));
+      writeStream = null;
       await fs.promises.rename(tempPath, finalPath);
       console.log('[cohere-download] complete', { path: finalPath });
       return { ok: true };
     } catch (err) {
       console.warn('[cohere-download] failed', err);
+      // Close the write handle and cancel the reader before deleting — on Windows
+      // an open handle blocks unlink (EBUSY) and leaks the fd otherwise.
+      await reader?.cancel().catch(() => {});
+      if (writeStream && !writeStream.destroyed) {
+        await new Promise(resolve => writeStream.end(() => resolve()));
+      }
       await fs.promises.unlink(tempPath).catch(() => {});
       return { ok: false, reason: err.message };
     } finally {

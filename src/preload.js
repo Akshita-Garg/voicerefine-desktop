@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('voicerefine', {
   setRecordingShortcut: (accelerator) => ipcRenderer.invoke('set-recording-shortcut', accelerator),
   getRefinementSettings: () => ipcRenderer.invoke('get-refinement-settings'),
   setRefinementSettings: (settings) => ipcRenderer.invoke('set-refinement-settings', settings),
+  quitApp: () => ipcRenderer.invoke('quit-app'),
   overlayReady: () => ipcRenderer.send('overlay-ready'),
   overlayRecordingStarted: () => ipcRenderer.send('overlay-recording-started'),
   overlayRecordingStopped: (metadata) => ipcRenderer.send('overlay-recording-stopped', metadata),

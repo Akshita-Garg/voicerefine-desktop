@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Eraser, Sparkles, Copy, Check, Settings } from 'lucide-react'
+import { Eraser, Sparkles, Copy, Check, Settings, Power } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { formatShortcutLabel } from './utils/shortcut'
+import { calculateShortcutMaxTokens } from './utils/refinementBudget'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
@@ -178,6 +179,7 @@ function App() {
           system,
           user,
           preset: transformPreset,
+          maxTokens: calculateShortcutMaxTokens(transcript, { intent: 'transform' }),
         })
       }
 
@@ -227,13 +229,24 @@ function App() {
         <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">
           VoiceRefine
         </h1>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-          className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
-        >
-          <Settings size={18} strokeWidth={1.75} color="#8A766E" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
+          >
+            <Settings size={18} strokeWidth={1.75} color="#8A766E" />
+          </button>
+          <button
+            onClick={() => window.voicerefine?.quitApp?.()}
+            aria-label="Quit VoiceRefine"
+            title="Quit VoiceRefine"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium text-[#8A766E] hover:bg-[rgba(213,120,105,0.12)] hover:text-[#B4452F] transition-colors"
+          >
+            <Power size={16} strokeWidth={1.9} />
+            Quit
+          </button>
+        </div>
       </header>
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
