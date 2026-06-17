@@ -125,7 +125,7 @@ function ShortcutStep({ onContinue }) {
     const nextShortcut = shortcutFromEvent(event)
     if (!nextShortcut) {
       setStatus('error')
-      setError('Hold Ctrl or Alt and press another key.')
+      setError('Hold Ctrl, Alt, or the Windows key and press another key.')
       return
     }
     if (isReservedAccelerator(nextShortcut)) {

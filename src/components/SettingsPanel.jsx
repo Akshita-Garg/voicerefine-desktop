@@ -252,7 +252,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     const nextShortcut = shortcutFromEvent(event)
     if (!nextShortcut) {
       setShortcutStatus('error')
-      setShortcutError('Hold Ctrl or Alt and press another key.')
+      setShortcutError('Hold Ctrl, Alt, or the Windows key and press another key.')
       return
     }
     if (isReservedAccelerator(nextShortcut)) {
@@ -495,7 +495,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               </div>
             </div>
             <p className="mt-2 text-xs text-[#8A766E] leading-snug">
-              This shortcut works globally and toggles the overlay recording in other apps. Hold Ctrl or Alt and press another key. Press Esc while recording to cancel.
+              This shortcut works globally and toggles the overlay recording in other apps. Use Ctrl, Alt, or the Windows key with another key. Press Esc while recording to cancel.
             </p>
             {shortcutStatus === 'error' && <p className="mt-2 text-xs text-red-700">{shortcutError}</p>}
             {shortcutStatus === 'ready' && <p className="mt-2 text-xs text-[#5C8F70]">Shortcut updated.</p>}

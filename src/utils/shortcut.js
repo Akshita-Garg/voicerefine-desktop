@@ -8,7 +8,8 @@
 const MODIFIER_KEYS = ['Control', 'Shift', 'Alt', 'Meta', 'Super']
 
 // Modifiers that count as a "primary" modifier. A valid global shortcut needs
-// at least one of these; Shift alone is not enough (the OS rejects it).
+// at least one of these (Control, Alt, or the Windows key); Shift alone is not
+// enough (the OS rejects it).
 const PRIMARY_MODIFIERS = ['Control', 'Alt', 'Super']
 
 // Maps DOM KeyboardEvent.key values to Electron accelerator key names.

@@ -70,7 +70,8 @@ function isValidHotkeyAccelerator(value) {
   const validModifiers = new Set(['Control', 'Alt', 'Shift', 'Super', 'Meta']);
   const primaryModifiers = new Set(['Control', 'Alt', 'Super', 'Meta']);
   if (!modifiers.every(part => validModifiers.has(part))) return false;
-  // Shift alone is not a valid global shortcut; require a primary modifier.
+  // Shift alone is not a valid global shortcut; require a primary modifier
+  // (Control, Alt, or the Windows key).
   const hasPrimaryModifier = modifiers.some(part => primaryModifiers.has(part));
   if (!hasPrimaryModifier) return false;
   if (!key || validModifiers.has(key) || key === CANCEL_ACCELERATOR) return false;
