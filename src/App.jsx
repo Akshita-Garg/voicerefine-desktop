@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Eraser, Sparkles, Copy, Check, Settings } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
+import { formatShortcutLabel } from './utils/shortcut'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { currentNativeAsrModel, preloadNativeAsrModel, syncSelectedNativeAsrModel, transcribe } from './services/asr'
@@ -81,6 +82,19 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [refinementMode, setRefinementMode] = useState(readRefinementMode)
   const [transformPreset, setTransformPreset] = useState(readTransformPreset)
+  const [recordingShortcut, setRecordingShortcut] = useState('Control+Space')
+
+  const refreshRecordingShortcut = useCallback(() => {
+    window.voicerefine?.getRecordingShortcut?.()
+      .then(result => {
+        if (result?.accelerator) setRecordingShortcut(result.accelerator)
+      })
+      .catch(err => console.warn('[app] could not load recording shortcut', err))
+  }, [])
+
+  useEffect(() => {
+    refreshRecordingShortcut()
+  }, [refreshRecordingShortcut])
 
   useEffect(() => {
     let cancelled = false
@@ -120,7 +134,7 @@ function App() {
     warmSelectedRefinementProvider({ refinementMode: nextMode, provider })
   }
 
-  const handleAudioReady = async (blob) => {
+  const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
     setIsTranscribing(true)
     const startedAt = performance.now()
@@ -137,7 +151,7 @@ function App() {
     } finally {
       setIsTranscribing(false)
     }
-  }
+  }, [])
 
   const handleProcess = async () => {
     const transcript = rawTranscript.trim()
@@ -184,6 +198,7 @@ function App() {
     setProvider(nextProvider)
     setRefinementMode(nextMode)
     void syncRefinementSettings()
+    refreshRecordingShortcut()
     if (warm) warmSelectedRefinementProvider({ refinementMode: nextMode, provider: nextProvider })
   }
 
@@ -222,6 +237,19 @@ function App() {
       </header>
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
+        <div
+          className="w-full max-w-5xl rounded-2xl border border-[#C96F3B]/25 px-5 py-3"
+          style={{ background: 'rgba(201,111,59,0.08)' }}
+        >
+          <p className="text-sm text-[#7A4A2E] leading-relaxed">
+            VoiceRefine works in <strong>any app</strong>. Press{' '}
+            <kbd className="inline-flex items-center mx-0.5 px-2 py-0.5 rounded-md border border-[#C96F3B]/35 bg-[#F4ECE3] text-[#7A4A2E] text-xs font-semibold tracking-tight">
+              {formatShortcutLabel(recordingShortcut)}
+            </kbd>{' '}
+            anywhere to dictate straight into the window you're typing in. This window is just for reviewing transcripts and tuning settings — you don't need it open to use VoiceRefine.
+          </p>
+        </div>
+
         {!tipDismissed && (
           <div
             className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-3"

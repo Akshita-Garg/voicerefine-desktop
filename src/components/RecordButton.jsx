@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 
@@ -10,9 +10,16 @@ function formatTime(seconds) {
 
 export function RecordButton({ onAudioReady, isProcessing, onRecordingChange, disabled }) {
   const { state, countdown, audioBlob, error, toggle } = useAudioRecorder()
+  const lastProcessedBlob = useRef(null)
 
+  // Fire onAudioReady once per recording. The blob stays set between recordings
+  // and onAudioReady's identity changes on every parent render, so without this
+  // guard the effect re-fires and re-transcribes the same audio in a loop.
   useEffect(() => {
-    if (audioBlob) onAudioReady?.(audioBlob)
+    if (audioBlob && audioBlob !== lastProcessedBlob.current) {
+      lastProcessedBlob.current = audioBlob
+      onAudioReady?.(audioBlob)
+    }
   }, [audioBlob, onAudioReady])
 
   useEffect(() => {
@@ -24,13 +31,13 @@ export function RecordButton({ onAudioReady, isProcessing, onRecordingChange, di
 
   const buttonStyle = isRecording
     ? { background: '#7FAF8F', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-    : { background: 'rgba(213, 120, 105, 0.12)', boxShadow: '0 2px 4px rgba(58,47,42,0.06)' }
+    : { background: 'rgba(213, 120, 105, 0.24)', boxShadow: '0 2px 4px rgba(58,47,42,0.06)' }
 
   const buttonClass = isRecording
     ? 'ring-4 ring-[#7FAF8F]/35'
     : isBlocked
-      ? 'border-2 border-[rgba(213,120,105,0.4)] opacity-40 cursor-not-allowed'
-      : 'border-2 border-[rgba(213,120,105,0.4)] hover:scale-105'
+      ? 'border-2 border-[rgba(213,120,105,0.55)] opacity-40 cursor-not-allowed'
+      : 'border-2 border-[rgba(213,120,105,0.55)] hover:scale-105'
 
   const iconColor = isRecording ? '#F4F7F5' : '#8A766E'
 
