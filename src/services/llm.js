@@ -1,7 +1,7 @@
 // Cloud providers speak the OpenAI chat/completions format.
 // Gemini supports it via their OpenAI-compatible layer at a different base URL.
 import { readProviderConfig } from '../utils/providerConfig'
-import { cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from '../utils/refinementOutput'
+import { capitalizeSentenceStarts, cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from '../utils/refinementOutput'
 
 const PROVIDERS = {
   openai: {
@@ -28,7 +28,7 @@ function getProviderConfig() {
 }
 
 export function cleanTranscriptText(text) {
-  return cleanSpeechArtifacts(cleanRefinementOutput(text))
+  return capitalizeSentenceStarts(cleanSpeechArtifacts(cleanRefinementOutput(text)))
 }
 
 function transformSamplingFor({ preset }) {

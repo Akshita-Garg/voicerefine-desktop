@@ -41,14 +41,21 @@ function cleanTechnicalNumberPhrases(text) {
     .replace(/\bfive hundred errors\b/gi, '500 errors')
 }
 
-function capitalizeFirstTextChar(text) {
-  return text.replace(/^[a-z]/, char => char.toUpperCase())
+export function capitalizeSentenceStarts(text) {
+  if (!text) return text
+  return text
+    // First letter of the text, and the start of each line (paragraphs/bullets),
+    // skipping any leading bullet or number marker.
+    .replace(/(^|\n)([ \t]*(?:[-*]\s+|\d+[.)]\s+)?)([a-z])/g, (_m, lead, prefix, ch) => `${lead}${prefix}${ch.toUpperCase()}`)
+    // First letter after sentence-ending punctuation (the model often adds the
+    // period but leaves the next sentence lowercase).
+    .replace(/([.!?][)"']?\s+)([a-z])/g, (_m, boundary, ch) => `${boundary}${ch.toUpperCase()}`)
 }
 
 export function finalizeTransformOutput(text) {
   if (!text) return text
 
-  const cleaned = capitalizeFirstTextChar(cleanTechnicalNumberPhrases(removeFormattingCommandLines(cleanActuallyMakeThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))))
+  const cleaned = capitalizeSentenceStarts(cleanTechnicalNumberPhrases(removeFormattingCommandLines(cleanActuallyMakeThat(cleanSpeechArtifacts(cleanRefinementOutput(text))))))
   const lines = cleaned.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const bulletLines = lines.filter(line => /^([-*]|\d+[.)])\s+/.test(line))
   if (bulletLines.length >= 2) return cleaned

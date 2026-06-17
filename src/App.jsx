@@ -239,7 +239,7 @@ function App() {
       style={{ background: 'linear-gradient(180deg, #EDE6DA 0%, #E5DDD0 100%)' }}
     >
       <header className="flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
-        <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">
+        <h1 className="text-xl font-semibold tracking-tight text-[#c35f67]">
           VoiceRefine
         </h1>
         <button
@@ -261,12 +261,12 @@ function App() {
             <kbd className="inline-flex items-center mx-0.5 px-2 py-0.5 rounded-md border border-[#7FAF8F]/45 bg-[#EAF1EC] text-[#3F6B50] text-xs font-semibold tracking-tight">
               {formatShortcutLabel(recordingShortcut)}
             </kbd>{' '}
-            anywhere to dictate straight into the window you're typing in. This window is just for reviewing transcripts and tuning settings — you don't need it open to use VoiceRefine.
+            anywhere to dictate straight into the window you're typing in. Each dictation is also copied to your clipboard, so you can press Ctrl+V to paste it if it didn't land where you wanted. This window is just for reviewing transcripts and tuning settings — you don't need it open to use VoiceRefine.
           </p>
         </div>
 
         <div className="flex flex-col items-center gap-3">
-          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} />
+          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} disabled={isProcessing} onRecordingChange={setIsRecording} />
           {transcribeError && (
             <p className="text-sm text-red-700">
               Transcription failed. Check the app console for details.

@@ -118,17 +118,14 @@ async function pasteTextIntoActiveApp(text) {
   const trimmedText = text?.trim();
   if (!trimmedText) return { inserted: false, reason: 'empty-text' };
 
-  const previousText = clipboard.readText();
+  // Leave the transcript on the clipboard (no restore of the previous contents).
+  // Paste success can't be reliably detected — if the auto-paste lands somewhere
+  // you didn't want, or nowhere (e.g. you switched apps mid-transcription), the
+  // last dictation stays on the clipboard so you can paste it yourself with Ctrl+V.
   clipboard.writeText(trimmedText);
 
   try {
     await sendPasteShortcut();
-    setTimeout(() => {
-      if (clipboard.readText() === trimmedText) {
-        clipboard.writeText(previousText);
-      }
-    }, 1200);
-
     return { inserted: true, chars: trimmedText.length };
   } catch (err) {
     clipboard.writeText(trimmedText);

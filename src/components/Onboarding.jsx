@@ -400,7 +400,7 @@ export function Onboarding({ onComplete }) {
       style={{ background: 'linear-gradient(180deg, #EADBD2 0%, #E6D4C2 100%)' }}
     >
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
-        <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">VoiceRefine</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-[#c35f67]">VoiceRefine</h1>
         <span className="text-xs text-[#8A766E]">Step {step} of {refinementMode === REFINEMENT_MODE_TRANSFORM ? 3 : 2}</span>
       </div>
 
