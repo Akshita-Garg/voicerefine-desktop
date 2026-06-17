@@ -8,7 +8,7 @@ import {
   TRANSFORM_PROMPT_MODE_PRESET,
   promptStorageKeyForPreset,
 } from '../utils/refinementSettings'
-import { formatShortcutLabel, isModifierOnlyEvent, shortcutFromEvent } from '../utils/shortcut'
+import { formatShortcutLabel, isModifierOnlyEvent, isReservedAccelerator, shortcutFromEvent } from '../utils/shortcut'
 
 const REFINEMENT_CHOICES = [
   {
@@ -114,6 +114,11 @@ function ShortcutStep({ onContinue }) {
     if (!nextShortcut) {
       setStatus('error')
       setError('Hold Ctrl or Alt and press another key.')
+      return
+    }
+    if (isReservedAccelerator(nextShortcut)) {
+      setStatus('error')
+      setError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work. Try another combination.`)
       return
     }
 

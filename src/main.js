@@ -28,6 +28,10 @@ if (!hasSingleInstanceLock) {
 // the app. Ctrl+Shift+Space is a reliable default.
 const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Shift+Space';
 const CANCEL_ACCELERATOR = 'Esc';
+// Mirror of RESERVED_ACCELERATORS in utils/shortcut.js — combos Windows consumes
+// at the OS level, so globalShortcut reports them registered but never fires.
+// Rejecting them here auto-heals a stale stored value to the default.
+const RESERVED_ACCELERATORS = new Set(['Control+Space', 'Alt+Space']);
 let mainWindow = null;
 let overlayWindow = null;
 let isQuitting = false;
@@ -57,6 +61,7 @@ function isValidHotkeyAccelerator(value) {
   if (typeof value !== 'string') return false;
   const parts = value.split('+').map(part => part.trim()).filter(Boolean);
   if (parts.length < 2) return false;
+  if (RESERVED_ACCELERATORS.has(parts.join('+'))) return false;
 
   const key = parts.at(-1);
   const modifiers = parts.slice(0, -1);

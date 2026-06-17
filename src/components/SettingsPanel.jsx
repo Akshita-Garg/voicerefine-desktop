@@ -17,7 +17,7 @@ import {
   preloadNativeAsrModel,
   syncSelectedNativeAsrModel,
 } from '../services/asr'
-import { formatShortcutLabel, isModifierOnlyEvent, shortcutFromEvent } from '../utils/shortcut'
+import { formatShortcutLabel, isModifierOnlyEvent, isReservedAccelerator, shortcutFromEvent } from '../utils/shortcut'
 
 const PROVIDER_OPTIONS = [
   { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Transform runs locally on your device using a bundled model. No setup, no internet required.' },
@@ -240,6 +240,11 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     if (!nextShortcut) {
       setShortcutStatus('error')
       setShortcutError('Hold Ctrl or Alt and press another key.')
+      return
+    }
+    if (isReservedAccelerator(nextShortcut)) {
+      setShortcutStatus('error')
+      setShortcutError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work as a shortcut. Try another combination.`)
       return
     }
 

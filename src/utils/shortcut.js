@@ -58,6 +58,18 @@ export function shortcutFromEvent(event) {
   return [...modifiers, key].join('+')
 }
 
+// Combinations Windows reserves at the OS level. globalShortcut.register() may
+// report these as registered, but the OS consumes the keypress first so the
+// shortcut never actually fires — so we reject them up front instead of saving
+// a shortcut that silently does nothing.
+//   Control+Space — switches input method / IME (active with 2+ input methods)
+//   Alt+Space     — opens the window system menu
+const RESERVED_ACCELERATORS = new Set(['Control+Space', 'Alt+Space'])
+
+export function isReservedAccelerator(accelerator) {
+  return RESERVED_ACCELERATORS.has(accelerator)
+}
+
 // Turn an accelerator string into a human-friendly label (e.g. "Ctrl + Space").
 export function formatShortcutLabel(accelerator) {
   return accelerator
