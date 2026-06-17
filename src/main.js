@@ -16,10 +16,18 @@ if (started) {
   app.quit();
 }
 
+// Only one VoiceRefine instance may run. After "Close window" hides the window,
+// relaunching the app focuses the existing instance instead of starting a second.
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
 const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Space';
 const CANCEL_ACCELERATOR = 'Esc';
 let mainWindow = null;
 let overlayWindow = null;
+let isQuitting = false;
 let hotkeyAccelerator = DEFAULT_HOTKEY_ACCELERATOR;
 let overlayReady = false;
 let overlayRecording = false;
@@ -143,15 +151,17 @@ const createWindow = () => {
     },
   });
 
+  // Intercept the window's close (×): instead of closing, ask the renderer to
+  // show the "Close window vs Quit" options. A real quit sets isQuitting first
+  // (see before-quit / quit-app), so the close is allowed to proceed then.
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    mainWindow.webContents.send('show-close-options');
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
-    // The overlay is a hidden helper window that otherwise keeps the app alive
-    // (window-all-closed never fires), leaving a headless process holding the
-    // global hotkey with no way to quit. Tear it down so the app exits cleanly.
-    if (process.platform !== 'darwin') {
-      if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.destroy();
-      overlayWindow = null;
-    }
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -338,7 +348,18 @@ function registerGlobalHotkeys() {
 }
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   addCrossOriginHeaders();
+
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
 
   // Renderer calls window.voicerefine.refineBuiltin(system, user)
   // which crosses the IPC bridge to here, runs Gemma inference, and returns the string.
@@ -398,6 +419,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('quit-app', () => {
     app.quit();
+  });
+  ipcMain.handle('close-window', () => {
+    mainWindow?.hide();
   });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
@@ -519,6 +543,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   clearUnloadTimer();
   void unloadBuiltinModel();
   void unloadNativeAsrModels();

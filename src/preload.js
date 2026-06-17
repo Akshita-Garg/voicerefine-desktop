@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('voicerefine', {
   getRefinementSettings: () => ipcRenderer.invoke('get-refinement-settings'),
   setRefinementSettings: (settings) => ipcRenderer.invoke('set-refinement-settings', settings),
   quitApp: () => ipcRenderer.invoke('quit-app'),
+  closeWindow: () => ipcRenderer.invoke('close-window'),
+  onShowCloseOptions: (handler) => {
+    const listener = () => handler();
+    ipcRenderer.on('show-close-options', listener);
+    return () => ipcRenderer.removeListener('show-close-options', listener);
+  },
   overlayReady: () => ipcRenderer.send('overlay-ready'),
   overlayRecordingStarted: () => ipcRenderer.send('overlay-recording-started'),
   overlayRecordingStopped: (metadata) => ipcRenderer.send('overlay-recording-stopped', metadata),

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Eraser, Sparkles, Copy, Check, Settings, Power } from 'lucide-react'
+import { Eraser, Sparkles, Copy, Check, Settings } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { formatShortcutLabel } from './utils/shortcut'
 import { calculateShortcutMaxTokens } from './utils/refinementBudget'
@@ -84,6 +84,7 @@ function App() {
   const [refinementMode, setRefinementMode] = useState(readRefinementMode)
   const [transformPreset, setTransformPreset] = useState(readTransformPreset)
   const [recordingShortcut, setRecordingShortcut] = useState('Control+Space')
+  const [closeOptionsOpen, setCloseOptionsOpen] = useState(false)
 
   const refreshRecordingShortcut = useCallback(() => {
     window.voicerefine?.getRecordingShortcut?.()
@@ -96,6 +97,18 @@ function App() {
   useEffect(() => {
     refreshRecordingShortcut()
   }, [refreshRecordingShortcut])
+
+  useEffect(() => {
+    const unsubscribe = window.voicerefine?.onShowCloseOptions?.(() => setCloseOptionsOpen(true))
+    return () => unsubscribe?.()
+  }, [])
+
+  useEffect(() => {
+    if (!closeOptionsOpen) return
+    const onKey = (event) => { if (event.key === 'Escape') setCloseOptionsOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [closeOptionsOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -229,24 +242,13 @@ function App() {
         <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">
           VoiceRefine
         </h1>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Settings"
-            className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
-          >
-            <Settings size={18} strokeWidth={1.75} color="#8A766E" />
-          </button>
-          <button
-            onClick={() => window.voicerefine?.quitApp?.()}
-            aria-label="Quit VoiceRefine"
-            title="Quit VoiceRefine"
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium text-[#8A766E] hover:bg-[rgba(213,120,105,0.12)] hover:text-[#B4452F] transition-colors"
-          >
-            <Power size={16} strokeWidth={1.9} />
-            Quit
-          </button>
-        </div>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Settings"
+          className="p-2 rounded-md hover:bg-[rgba(58,47,42,0.06)] transition-colors"
+        >
+          <Settings size={18} strokeWidth={1.75} color="#8A766E" />
+        </button>
       </header>
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
@@ -423,6 +425,45 @@ function App() {
           </div>
         </div>
       </main>
+
+      {closeOptionsOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: 'rgba(40,35,32,0.45)' }}
+          onClick={() => setCloseOptionsOpen(false)}
+        >
+          <div
+            className="w-[340px] rounded-2xl bg-[#F3ECE2] border border-[rgba(58,47,42,0.12)] p-5"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-[#3A2F2A] mb-1">Close VoiceRefine?</h2>
+            <p className="text-xs text-[#8A766E] mb-4 leading-snug">Choose what happens when you close this window.</p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setCloseOptionsOpen(false); window.voicerefine?.closeWindow?.() }}
+                className="w-full text-left px-4 py-3 rounded-xl border border-[rgba(58,47,42,0.1)] bg-white/40 hover:bg-white/70 transition-colors"
+              >
+                <span className="block text-sm font-medium text-[#3A2F2A]">Close window</span>
+                <span className="block text-xs text-[#8A766E] leading-snug mt-0.5">Keep VoiceRefine running — your shortcut still works in every app. Relaunch the app to reopen this window.</span>
+              </button>
+              <button
+                onClick={() => window.voicerefine?.quitApp?.()}
+                className="w-full text-left px-4 py-3 rounded-xl border border-[rgba(213,120,105,0.35)] bg-[rgba(213,120,105,0.1)] hover:bg-[rgba(213,120,105,0.18)] transition-colors"
+              >
+                <span className="block text-sm font-medium text-[#B4452F]">Quit VoiceRefine</span>
+                <span className="block text-xs text-[#A06A52] leading-snug mt-0.5">Stop the app completely. The shortcut won't work until you open it again.</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setCloseOptionsOpen(false)}
+              className="mt-3 w-full text-center text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors py-1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <SettingsPanel
         open={settingsOpen}
