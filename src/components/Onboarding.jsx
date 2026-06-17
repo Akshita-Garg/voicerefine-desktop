@@ -94,6 +94,18 @@ function ShortcutStep({ onContinue }) {
     if (capturing) buttonRef.current?.focus()
   }, [capturing])
 
+  // Windows swallows some combos (e.g. Ctrl+Space) before the field gets a
+  // keydown, so capture would sit silently. Surface a hint if nothing lands.
+  useEffect(() => {
+    if (!capturing) return
+    const timer = setTimeout(() => {
+      setCapturing(false)
+      setStatus('error')
+      setError("Didn't catch a shortcut. If a key seems to do nothing, it's likely reserved by Windows (like Ctrl+Space) — try adding Shift or a different key.")
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [capturing])
+
   const handleKeyDown = (event) => {
     if (!capturing) return
     event.preventDefault()
@@ -117,6 +129,7 @@ function ShortcutStep({ onContinue }) {
       return
     }
     if (isReservedAccelerator(nextShortcut)) {
+      setCapturing(false)
       setStatus('error')
       setError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work. Try another combination.`)
       return

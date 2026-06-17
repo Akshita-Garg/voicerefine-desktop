@@ -105,6 +105,19 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     if (isCapturingShortcut) shortcutButtonRef.current?.focus()
   }, [isCapturingShortcut])
 
+  // Some combos (e.g. Ctrl+Space) are swallowed by Windows before the field
+  // ever receives a keydown, so capture would just sit there silently. If
+  // nothing lands within a few seconds, surface a hint instead of dead air.
+  useEffect(() => {
+    if (!isCapturingShortcut) return
+    const timer = setTimeout(() => {
+      setIsCapturingShortcut(false)
+      setShortcutStatus('error')
+      setShortcutError("Didn't catch a shortcut. If a key seems to do nothing, it's likely reserved by Windows (like Ctrl+Space) — try adding Shift or a different key.")
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [isCapturingShortcut])
+
   const needsKey = PROVIDER_OPTIONS.find(p => p.value === provider)?.needsKey ?? false
   const providerNeedsKey = (value) => PROVIDER_OPTIONS.find(p => p.value === value)?.needsKey ?? false
 
@@ -243,6 +256,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
       return
     }
     if (isReservedAccelerator(nextShortcut)) {
+      setIsCapturingShortcut(false)
       setShortcutStatus('error')
       setShortcutError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work as a shortcut. Try another combination.`)
       return
