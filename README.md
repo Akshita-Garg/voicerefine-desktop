@@ -1,146 +1,156 @@
 # VoiceRefine Desktop
 
-VoiceRefine Desktop is a cross-platform Electron app for local-first voice transcription and transcript refinement. The goal is to make dictation feel useful both inside the main app and inside other apps through a global shortcut.
+Press a hotkey, speak, and polished text appears in whatever app you're using — without sending your voice to any server.
 
-The app records audio locally, transcribes it on-device, optionally refines the transcript into cleaner prose or another output style, and can paste the result into the currently focused application through an overlay flow.
+VoiceRefine runs local transcription and refinement models on your machine. It has two surfaces: a main window for longer dictation sessions and a global-hotkey overlay that records and pastes directly into the focused app.
 
-## Project Overview
+**Platform:** Windows 10 / 11 (macOS and Linux planned)
 
-VoiceRefine Desktop is built around two core jobs:
+---
 
-1. Fast local transcription
-2. Lightweight local or provider-backed refinement
+## Transcription Modes
 
-The current desktop experience includes:
+Three modes selectable in Settings. The selected model preloads at startup so repeated recordings don't pay the full startup cost.
 
-- A main window for recording, reviewing raw transcripts, refining output, and changing settings
-- A global shortcut overlay for recording and inserting text into another app
-- Local transcription model selection
-- Multiple refinement intents and output modes
-- Warm model loading to reduce repeated latency
-- A small benchmark harness for evaluating refinement quality and speed
+| Mode | Model | Notes |
+|---|---|---|
+| **Quick** | Whisper Tiny (ONNX, on-device) | Fastest. Good for short notes where latency matters more than accuracy. |
+| **Balanced** *(default)* | Parakeet TDT 0.6B Q4 | A local CrispASR server stays warm at `localhost:51234`. Reused across recordings for consistent latency. |
+| **Precise** | Cohere Transcribe Q4 | Highest accuracy, especially for technical terms. Downloaded on first use (~1.5 GB via Settings). |
 
-## How It Works
+---
 
-### Transcription
+## Refinement Modes
 
-The app currently supports local transcription paths that favor privacy and low setup friction:
+### Clean
 
-- `Balanced`: Parakeet Q4 through a warm CrispASR server
-- `Quick`: a smaller Whisper-style local model for faster but lower-accuracy transcription
-- `Precise`: Cohere Q4 through a CLI path
+No LLM. Runs instantly in the renderer. Strips filler words ("um", "uh"), fixes punctuation and casing, removes speech artifacts. Zero latency, no model required.
 
-The selected transcription model is preloaded when possible so the first recording does not pay the full startup cost each time.
+### Transform
 
-### Refinement
+LLM-powered rewrite. Two named presets:
 
-Refinement can run through:
+| Preset | Behavior |
+|---|---|
+| **Smart Format** | Keeps your exact words and vocabulary. Cleans punctuation, handles spoken lists, corrections, and asides. Conservative — it doesn't rephrase. |
+| **Polish & Organize** | Lightly rewrites for flow and clarity. Merges repetition, restructures when you signal a list. Good for longer dictation. |
 
-- The built-in local Gemma path using `node-llama-cpp`
-- External providers configured in Settings
-- Clean mode, which performs fast non-LLM cleanup without loading Gemma
+Both presets have editable prompts in Settings — switch to Custom mode to change the exact instructions the model receives.
 
-The built-in path is tuned for short editing tasks like:
+### Refinement Providers
 
-- removing filler words
-- cleaning punctuation and casing
-- lightly composing text for written use
-- preparing spoken wording
+| Provider | Details |
+|---|---|
+| **Built-in** *(recommended)* | Gemma 3 1B Q4_K_M via `node-llama-cpp`. GPU-accelerated (CUDA/Vulkan), falls back to CPU. Model stays warm for 30 minutes after last use, then unloads to free memory. |
+| **Gemini** | `gemini-2.0-flash` via Google AI Studio. Free tier available. Add your key in Settings. |
+| **OpenAI** | `gpt-4o-mini`. Add your OpenAI key in Settings. |
 
-The desktop shortcut flow uses a more compact prompt path than the main app to reduce latency.
+API keys are stored only in `localStorage` on your device — never sent to any VoiceRefine server.
 
-### Global Shortcut Flow
+---
 
-The default shortcut is:
+## Global Shortcut Overlay
 
-- `Ctrl+Space`
+The default shortcut is **Ctrl+Space**. Change it during onboarding or in Settings.
 
-You can change the shortcut during onboarding or later in Settings.
+**Flow:**
 
-The shortcut opens a small overlay, records until toggled off, transcribes the audio, optionally refines the result using the selected intent and mode from the main app, and pastes the final text into the active application.
+1. Press the shortcut — a small overlay appears without stealing focus from your app
+2. Speak
+3. Press the shortcut again to stop
+4. The overlay transcribes, refines (using your current mode and preset), and pastes the result into the focused window
+5. The clipboard is restored to its previous contents ~1.2 seconds later
 
-## Tech Stack
+Press **Esc** to cancel mid-recording.
 
-- Electron Forge
-- React
-- Vite
-- `sherpa-onnx-node`
-- `node-llama-cpp`
-- Tailwind CSS
-- Vitest
+---
 
-## Repository Structure
+## First Run / Onboarding
 
-- [src](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/src) contains the Electron main process, preload bridge, renderer app, overlay UI, and local inference services
-- [resources](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/resources) contains local runtime assets and model files that are used in development
-- [bench](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/bench) contains benchmark cases for refinement evaluation
-- [scripts](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/scripts) contains utility scripts such as the refinement benchmark runner
+A three-step wizard runs on first launch:
+
+1. **Choose refinement mode** — Clean or Transform
+2. **Set your recording shortcut** — press any key combination to capture it
+3. **Choose a provider** (Transform only) — Built-in, Gemini, or OpenAI; optionally validate your API key
+
+---
 
 ## Development
 
-Install dependencies:
-
 ```bash
 npm install
+npm start           # dev mode with hot reload
+npm test            # run logic tests (Vitest)
 ```
 
-Start the desktop app in development:
+### Packaging
 
 ```bash
-npm start
+npm run package                  # package the Electron app (no installer)
+npm run make:win:installer       # build the NSIS web installer for Windows
 ```
 
-Run the logic tests:
+Installer artifacts are written to `dist/nsis-web/`:
+- `VoiceRefineSetup-1.0.0.exe` — small stub (~600 KB) downloaded and run by the user
+- `voicerefine-desktop-1.0.0-x64.nsis.7z` — main payload (~1.6 GB), downloaded by the stub at install time from GitHub Releases
+
+### Benchmarks
 
 ```bash
-npm test
+npm run benchmark:refinement           # run refinement benchmark
+npm run benchmark:refinement -- --dry-run  # dry run without inference
 ```
 
-Package the app:
+---
 
-```bash
-npm run package
+## Project Structure
+
+```
+src/
+  main.js                  Electron main process — IPC handlers, shortcut, overlay orchestration
+  preload.js               IPC bridge exposed to renderers as window.voicerefine
+  App.jsx                  Main window UI
+  overlay.jsx              Global shortcut recording overlay
+  main/
+    asr.js                 ASR engine management (sherpa-onnx, CrispASR server/CLI)
+    refine.js              Gemma 3 lifecycle (load, warm, queue, idle-unload)
+  services/
+    asr.js                 Renderer-side ASR service
+    llm.js                 Renderer-side LLM dispatch (built-in + OpenAI/Gemini)
+  utils/
+    composePrompt.js        Transform prompt text and preset definitions
+    refinementSettings.js   Mode/preset/prompt storage helpers
+    refinementOutput.js     Post-processing pipeline (artifact cleaning, finalization)
+  components/
+    SettingsPanel.jsx       Settings drawer
+    Onboarding.jsx          First-run wizard
+
+resources/
+  models/                  Local model files (excluded from git — see below)
+  bin/                     CrispASR Windows binary
+
+docs/
+  index.html               GitHub Pages landing page for distribution
 ```
 
-Create Windows distributable artifacts:
+### Model Files
 
-```bash
-npm run make
-```
+Local model files are not in the repository. Place them in `resources/models/` for development:
 
-On Windows, release artifacts are written under:
+| File / Folder | Used by |
+|---|---|
+| `gemma-3-1b-it-Q4_K_M.gguf` | Built-in Transform refinement |
+| `parakeet-tdt-0.6b-v3-GGUF/` | Balanced transcription |
+| `sherpa-onnx-whisper-tiny.en/` | Quick transcription |
 
-```text
-out/make/zip/win32/x64
-```
+The Precise (Cohere) model is downloaded via the in-app Settings panel, not bundled.
 
-The unsigned Windows ZIP is useful for local testing and early private sharing. Users can unzip it and run `VoiceRefine.exe`. Public distribution still needs a Windows code-signing certificate and, later, a signed installer to reduce SmartScreen warnings.
+---
 
-Create the Windows web installer:
+## Tech Stack
 
-```bash
-npm run make:win:installer
-```
-
-See [Windows Release Notes](/C:/Users/akshi/Desktop/track-5-voicerefine/voicerefine-desktop/docs/windows-release.md) for installer artifacts, model delivery notes, and signing requirements.
-
-Run the refinement benchmark dry-run:
-
-```bash
-npm run benchmark:refinement -- --dry-run
-```
-
-## Notes
-
-- The repository expects local model files for the built-in transcription and refinement paths.
-- The built-in Gemma refinement path benefits from GPU acceleration when available.
-- The refinement benchmark script is meant to help compare prompt changes and future candidate models with the same fixed transcript set.
-
-## Status
-
-This project is actively being iterated on. Current work is focused on:
-
-- improving local refinement quality for small models
-- reducing latency in the shortcut flow
-- benchmarking better local refinement model options
-- keeping the experience privacy-preserving and usable across apps
+- [Electron Forge](https://www.electronforge.io/) + [Vite](https://vitejs.dev/)
+- [React 19](https://react.dev/) + [Tailwind CSS v4](https://tailwindcss.com/)
+- [sherpa-onnx-node](https://github.com/k2-fsa/sherpa-onnx) — on-device Whisper transcription
+- [node-llama-cpp](https://github.com/withcatai/node-llama-cpp) — on-device Gemma inference
+- [Vitest](https://vitest.dev/) — unit tests
