@@ -49,9 +49,14 @@ function isValidHotkeyAccelerator(value) {
 
   const key = parts.at(-1);
   const modifiers = parts.slice(0, -1);
-  const validModifiers = new Set(['Command', 'Control', 'Alt', 'Option', 'Shift', 'Super', 'Meta']);
-  const hasModifier = modifiers.some(part => validModifiers.has(part));
-  if (!hasModifier) return false;
+  // Windows-only build: no Command/Option (macOS) modifiers. Meta/Super is the
+  // Windows key. Must mirror the renderer capture rules in utils/shortcut.js.
+  const validModifiers = new Set(['Control', 'Alt', 'Shift', 'Super', 'Meta']);
+  const primaryModifiers = new Set(['Control', 'Alt', 'Super', 'Meta']);
+  if (!modifiers.every(part => validModifiers.has(part))) return false;
+  // Shift alone is not a valid global shortcut; require a primary modifier.
+  const hasPrimaryModifier = modifiers.some(part => primaryModifiers.has(part));
+  if (!hasPrimaryModifier) return false;
   if (!key || validModifiers.has(key) || key === CANCEL_ACCELERATOR) return false;
 
   return true;

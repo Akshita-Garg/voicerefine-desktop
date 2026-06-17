@@ -8,6 +8,7 @@ import {
   TRANSFORM_PROMPT_MODE_PRESET,
   promptStorageKeyForPreset,
 } from '../utils/refinementSettings'
+import { formatShortcutLabel, isModifierOnlyEvent, shortcutFromEvent } from '../utils/shortcut'
 
 const REFINEMENT_CHOICES = [
   {
@@ -29,52 +30,6 @@ const PROVIDERS = [
   { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true, description: 'Free API key from Google AI Studio.' },
   { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true, description: 'Requires an OpenAI API key.' },
 ]
-
-function formatShortcutLabel(accelerator) {
-  return accelerator
-    .replace(/Command/g, 'Cmd')
-    .replace(/Control/g, 'Ctrl')
-    .replace(/Alt/g, 'Alt')
-    .replace(/\+/g, ' + ')
-}
-
-function shortcutKeyFromEvent(event) {
-  const keyMap = {
-    ' ': 'Space',
-    Spacebar: 'Space',
-    Escape: 'Esc',
-    ArrowUp: 'Up',
-    ArrowDown: 'Down',
-    ArrowLeft: 'Left',
-    ArrowRight: 'Right',
-    Delete: 'Delete',
-    Backspace: 'Backspace',
-    Enter: 'Enter',
-    Tab: 'Tab',
-  }
-  if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return null
-  if (keyMap[event.key]) return keyMap[event.key]
-  if (/^F\d{1,2}$/.test(event.key)) return event.key
-  if (event.key.length === 1) return event.key.toUpperCase()
-  return event.key
-}
-
-function shortcutFromEvent(event) {
-  const key = shortcutKeyFromEvent(event)
-  if (!key || key === 'Esc') return null
-
-  const isMac = window.navigator.platform.toLowerCase().includes('mac')
-  const modifiers = []
-  if (event.metaKey) modifiers.push(isMac ? 'Command' : 'Super')
-  if (event.ctrlKey) modifiers.push('Control')
-  if (event.altKey) modifiers.push('Alt')
-  if (event.shiftKey) modifiers.push('Shift')
-
-  const hasPrimaryModifier = modifiers.some(modifier => modifier === 'Command' || modifier === 'Control' || modifier === 'Alt' || modifier === 'Super')
-  if (!hasPrimaryModifier) return null
-
-  return [...modifiers, key].join('+')
-}
 
 function Step1({ refinementMode, onSelect, onContinue }) {
   return (
@@ -151,10 +106,14 @@ function ShortcutStep({ onContinue }) {
       return
     }
 
+    // Keep waiting while only modifiers are held (e.g. Alt before Space) so we
+    // don't flash an error before the user finishes the combo.
+    if (isModifierOnlyEvent(event)) return
+
     const nextShortcut = shortcutFromEvent(event)
     if (!nextShortcut) {
       setStatus('error')
-      setError('Use Ctrl, Cmd, or Alt with another key.')
+      setError('Hold Ctrl or Alt and press another key.')
       return
     }
 
@@ -172,7 +131,7 @@ function ShortcutStep({ onContinue }) {
       if (result && !result.ok) {
         setStatus('error')
         setShortcut(result.accelerator ?? defaultShortcut)
-        setError(`${formatShortcutLabel(result.failedAccelerator)} is unavailable. Try another shortcut.`)
+        setError(`${formatShortcutLabel(result.failedAccelerator)} is already in use by another app and can't be used. Pick a different shortcut.`)
         return
       }
       onContinue()
@@ -237,7 +196,7 @@ function ShortcutStep({ onContinue }) {
         </div>
 
         <p className="text-xs text-[#8A766E] text-center leading-snug">
-          Default is {formatShortcutLabel(defaultShortcut)}. If a shortcut is already used by your system, VoiceRefine will ask you to choose another.
+          Default is {formatShortcutLabel(defaultShortcut)}. If a shortcut is already used by your system, VoiceRefine will ask you to choose another. Press Esc while recording to cancel.
         </p>
         {status === 'error' && <p className="text-sm text-red-700 text-center">{error}</p>}
       </div>
