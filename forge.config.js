@@ -119,6 +119,35 @@ module.exports = {
           'yargs',
           'yargs-parser',
           'yoctocolors',
+          // Additional transitive deps of ipull / node-llama-cpp / sherpa-onnx-node
+          // missed by the original trace. ipull statically imports lodash.debounce
+          // in its transfer-cli, which crashed warm-builtin on fresh installs with
+          // ERR_MODULE_NOT_FOUND. These complete the dependency closure.
+          'base64-js',
+          'bl',
+          'buffer',
+          'cli-cursor',
+          'clone',
+          'defaults',
+          'ieee754',
+          'inherits',
+          'is-interactive',
+          'lodash.debounce',
+          'log-symbols',
+          'mimic-fn',
+          'mkdirp',
+          'nanoid',
+          'onetime',
+          'ora',
+          'readable-stream',
+          'restore-cursor',
+          'safe-buffer',
+          'string_decoder',
+          'strip-outer',
+          'trim-repeated',
+          'type-fest',
+          'util-deprecate',
+          'wcwidth',
         ];
         try {
           for (const pkg of packages) {
