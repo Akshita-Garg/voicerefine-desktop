@@ -307,7 +307,19 @@ async function stopCrispAsrServer() {
   if (!server?.process || server.process.killed) return;
 
   console.log('[asr-crisp-server] stopping');
-  server.process.kill();
+  // Await the child's exit (escalating to SIGKILL) before returning so a
+  // subsequent startCrispAsrServer doesn't race the dying process for the port.
+  const child = server.process;
+  await new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (done) return; done = true; clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      finish();
+    }, 3000);
+    child.once('exit', finish);
+    try { child.kill(); } catch { finish(); }
+  });
 }
 
 function parseCrispServerResponse(body, contentType) {
@@ -317,7 +329,10 @@ function parseCrispServerResponse(body, contentType) {
   if (contentType.includes('application/json') || text.startsWith('{')) {
     try {
       const json = JSON.parse(text);
-      return (json.text ?? json.transcription ?? json.result ?? text).trim();
+      const parsed = json.text ?? json.transcription ?? json.result;
+      // Don't fall back to the raw JSON body — an unexpected shape (e.g. an
+      // error object) would otherwise get pasted as if it were the transcript.
+      return typeof parsed === 'string' ? parsed.trim() : '';
     } catch {
       return text;
     }
@@ -328,9 +343,14 @@ function parseCrispServerResponse(body, contentType) {
 
 async function postToCrispServer(server, wavBuffer) {
   const endpoints = ['/v1/audio/transcriptions', '/inference'];
+  // Without a timeout, a server that accepts the connection but stalls mid-
+  // inference would leave transcribe() pending forever (UI stuck on "Transcribing").
+  const timeoutMs = Number(process.env.VOICEREFINE_CRISPASR_TIMEOUT_MS || 180000);
   let lastError = null;
 
   for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const form = new FormData();
       form.append('file', new Blob([wavBuffer], { type: 'audio/wav' }), 'recording.wav');
@@ -339,6 +359,7 @@ async function postToCrispServer(server, wavBuffer) {
       const response = await fetch(`http://127.0.0.1:${server.port}${endpoint}`, {
         method: 'POST',
         body: form,
+        signal: controller.signal,
       });
       const body = await response.text();
 
@@ -349,7 +370,11 @@ async function postToCrispServer(server, wavBuffer) {
 
       return parseCrispServerResponse(body, response.headers.get('content-type') ?? '');
     } catch (err) {
-      lastError = err;
+      lastError = err.name === 'AbortError'
+        ? new Error(`CrispASR server ${endpoint} timed out after ${timeoutMs}ms`)
+        : err;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

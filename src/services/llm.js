@@ -1,7 +1,7 @@
 // Cloud providers speak the OpenAI chat/completions format.
 // Gemini supports it via their OpenAI-compatible layer at a different base URL.
 import { readProviderConfig } from '../utils/providerConfig'
-import { cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from '../utils/refinementOutput'
+import { capitalizeSentenceStarts, cleanRefinementOutput, cleanSpeechArtifacts, finalizeTransformOutput } from '../utils/refinementOutput'
 
 const PROVIDERS = {
   openai: {
@@ -28,7 +28,7 @@ function getProviderConfig() {
 }
 
 export function cleanTranscriptText(text) {
-  return cleanSpeechArtifacts(cleanRefinementOutput(text))
+  return capitalizeSentenceStarts(cleanSpeechArtifacts(cleanRefinementOutput(text)))
 }
 
 function transformSamplingFor({ preset }) {
@@ -81,6 +81,7 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
           ...(system?.trim() ? [{ role: 'system', content: system }] : []),
           { role: 'user', content: user },
         ],
+        ...(Number.isInteger(maxTokens) ? { max_tokens: maxTokens } : {}),
         stream: false,
       }),
     })
@@ -97,9 +98,9 @@ export async function refine({ system, user, preset, providerConfig, maxTokens }
     throw new Error(`Provider error: ${detail}`)
   }
 
-  const data = await response.json()
+  const data = await response.json().catch(() => null)
   const content = data?.choices?.[0]?.message?.content
-  if (!content) throw new Error('Unexpected response format from provider')
+  if (!content) throw new Error('Provider returned an unreadable or empty response.')
   return finalizeTransformOutput(content)
 }
 

@@ -16,10 +16,25 @@ if (started) {
   app.quit();
 }
 
-const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Space';
+// Only one VoiceRefine instance may run. After "Close window" hides the window,
+// relaunching the app focuses the existing instance instead of starting a second.
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
+// Ctrl+Space is consumed by the Windows input-method switcher when 2+ input
+// methods are installed (common on multilingual setups), so it never reaches
+// the app. Ctrl+Shift+Space is a reliable default.
+const DEFAULT_HOTKEY_ACCELERATOR = 'Control+Shift+Space';
 const CANCEL_ACCELERATOR = 'Esc';
+// Mirror of RESERVED_ACCELERATORS in utils/shortcut.js — combos Windows consumes
+// at the OS level, so globalShortcut reports them registered but never fires.
+// Rejecting them here auto-heals a stale stored value to the default.
+const RESERVED_ACCELERATORS = new Set(['Control+Space', 'Alt+Space']);
 let mainWindow = null;
 let overlayWindow = null;
+let isQuitting = false;
 let hotkeyAccelerator = DEFAULT_HOTKEY_ACCELERATOR;
 let overlayReady = false;
 let overlayRecording = false;
@@ -46,12 +61,19 @@ function isValidHotkeyAccelerator(value) {
   if (typeof value !== 'string') return false;
   const parts = value.split('+').map(part => part.trim()).filter(Boolean);
   if (parts.length < 2) return false;
+  if (RESERVED_ACCELERATORS.has(parts.join('+'))) return false;
 
   const key = parts.at(-1);
   const modifiers = parts.slice(0, -1);
-  const validModifiers = new Set(['Command', 'Control', 'Alt', 'Option', 'Shift', 'Super', 'Meta']);
-  const hasModifier = modifiers.some(part => validModifiers.has(part));
-  if (!hasModifier) return false;
+  // Windows-only build: no Command/Option (macOS) modifiers. Meta/Super is the
+  // Windows key. Must mirror the renderer capture rules in utils/shortcut.js.
+  const validModifiers = new Set(['Control', 'Alt', 'Shift', 'Super', 'Meta']);
+  const primaryModifiers = new Set(['Control', 'Alt', 'Super', 'Meta']);
+  if (!modifiers.every(part => validModifiers.has(part))) return false;
+  // Shift alone is not a valid global shortcut; require a primary modifier
+  // (Control, Alt, or the Windows key).
+  const hasPrimaryModifier = modifiers.some(part => primaryModifiers.has(part));
+  if (!hasPrimaryModifier) return false;
   if (!key || validModifiers.has(key) || key === CANCEL_ACCELERATOR) return false;
 
   return true;
@@ -96,17 +118,14 @@ async function pasteTextIntoActiveApp(text) {
   const trimmedText = text?.trim();
   if (!trimmedText) return { inserted: false, reason: 'empty-text' };
 
-  const previousText = clipboard.readText();
+  // Leave the transcript on the clipboard (no restore of the previous contents).
+  // Paste success can't be reliably detected — if the auto-paste lands somewhere
+  // you didn't want, or nowhere (e.g. you switched apps mid-transcription), the
+  // last dictation stays on the clipboard so you can paste it yourself with Ctrl+V.
   clipboard.writeText(trimmedText);
 
   try {
     await sendPasteShortcut();
-    setTimeout(() => {
-      if (clipboard.readText() === trimmedText) {
-        clipboard.writeText(previousText);
-      }
-    }, 1200);
-
     return { inserted: true, chars: trimmedText.length };
   } catch (err) {
     clipboard.writeText(trimmedText);
@@ -136,6 +155,15 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
+  });
+
+  // Intercept the window's close (×): instead of closing, ask the renderer to
+  // show the "Close window vs Quit" options. A real quit sets isQuitting first
+  // (see before-quit / quit-app), so the close is allowed to proceed then.
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    mainWindow.webContents.send('show-close-options');
   });
 
   mainWindow.on('closed', () => {
@@ -326,7 +354,18 @@ function registerGlobalHotkeys() {
 }
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   addCrossOriginHeaders();
+
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
 
   // Renderer calls window.voicerefine.refineBuiltin(system, user)
   // which crosses the IPC bridge to here, runs Gemma inference, and returns the string.
@@ -384,6 +423,12 @@ app.whenReady().then(() => {
     };
     return refinementSettings;
   });
+  ipcMain.handle('quit-app', () => {
+    app.quit();
+  });
+  ipcMain.handle('close-window', () => {
+    mainWindow?.hide();
+  });
   ipcMain.on('overlay-ready', () => {
     overlayReady = true;
     if (pendingOverlayCommand) {
@@ -403,6 +448,13 @@ app.whenReady().then(() => {
     console.log('[overlay] recording stopped', metadata);
   });
   ipcMain.on('overlay-transcription-complete', async (_event, payload) => {
+    // If the session was cancelled (Esc) while transcription was still running,
+    // overlayProcessing was already cleared — drop this stale result so we don't
+    // paste unwanted text into whatever app now has focus.
+    if (!overlayProcessing) {
+      console.log('[overlay] dropping cancelled/stale transcription completion');
+      return;
+    }
     overlayProcessing = false;
     console.log('[overlay] transcription complete', payload);
     try {
@@ -435,6 +487,8 @@ app.whenReady().then(() => {
     const tempPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf.part');
     const finalPath = path.join(destDir, 'cohere-transcribe-q4_k.gguf');
 
+    let writeStream = null;
+    let reader = null;
     try {
       await fs.promises.mkdir(destDir, { recursive: true });
       const response = await net.fetch(COHERE_MODEL_DOWNLOAD_URL);
@@ -442,8 +496,8 @@ app.whenReady().then(() => {
 
       const total = parseInt(response.headers.get('content-length') || '0', 10);
       let downloaded = 0;
-      const writeStream = fs.createWriteStream(tempPath);
-      const reader = response.body.getReader();
+      writeStream = fs.createWriteStream(tempPath);
+      reader = response.body.getReader();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -458,11 +512,18 @@ app.whenReady().then(() => {
       }
 
       await new Promise((resolve, reject) => writeStream.end(err => err ? reject(err) : resolve()));
+      writeStream = null;
       await fs.promises.rename(tempPath, finalPath);
       console.log('[cohere-download] complete', { path: finalPath });
       return { ok: true };
     } catch (err) {
       console.warn('[cohere-download] failed', err);
+      // Close the write handle and cancel the reader before deleting — on Windows
+      // an open handle blocks unlink (EBUSY) and leaks the fd otherwise.
+      await reader?.cancel().catch(() => {});
+      if (writeStream && !writeStream.destroyed) {
+        await new Promise(resolve => writeStream.end(() => resolve()));
+      }
       await fs.promises.unlink(tempPath).catch(() => {});
       return { ok: false, reason: err.message };
     } finally {
@@ -488,6 +549,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   clearUnloadTimer();
   void unloadBuiltinModel();
   void unloadNativeAsrModels();

@@ -1,3 +1,5 @@
+import { cleanSpeechArtifacts } from './refinementOutput'
+
 export const TRANSFORM_PRESETS = {
   clarity: {
     label: 'Smart Format',
@@ -210,11 +212,14 @@ export function defaultPromptForPreset(preset) {
 }
 
 export function normalizeTranscriptForTransform(transcript) {
-  return transcript
+  const normalized = (transcript ?? '')
     .replace(/\bin brackets\b/gi, 'side note')
     .replace(/\bfour hundred and four errors\b/gi, '404 errors')
     .replace(/\bfive hundred errors\b/gi, '500 errors')
-    .trim()
+  // Light artifact cleanup (filler words, spacing) so the model gets tidy input.
+  // Deliberately not the full clean: formatting cues like "new paragraph" /
+  // "make a list" must survive for the prompt's rules to act on them.
+  return cleanSpeechArtifacts(normalized)
 }
 
 export function composeTransformPrompt({ prompt, transcript }) {

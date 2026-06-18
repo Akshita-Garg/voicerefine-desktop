@@ -17,6 +17,7 @@ import {
   preloadNativeAsrModel,
   syncSelectedNativeAsrModel,
 } from '../services/asr'
+import { formatShortcutLabel, isModifierOnlyEvent, isReservedAccelerator, shortcutFromEvent } from '../utils/shortcut'
 
 const PROVIDER_OPTIONS = [
   { value: 'builtin', label: 'Built-in (Recommended)', needsKey: false, description: 'Transform runs locally on your device using a bundled model. No setup, no internet required.' },
@@ -102,6 +103,19 @@ export function SettingsPanel({ open, onClose, onSaved }) {
 
   useEffect(() => {
     if (isCapturingShortcut) shortcutButtonRef.current?.focus()
+  }, [isCapturingShortcut])
+
+  // Some combos (e.g. Ctrl+Space) are swallowed by Windows before the field
+  // ever receives a keydown, so capture would just sit there silently. If
+  // nothing lands within a few seconds, surface a hint instead of dead air.
+  useEffect(() => {
+    if (!isCapturingShortcut) return
+    const timer = setTimeout(() => {
+      setIsCapturingShortcut(false)
+      setShortcutStatus('error')
+      setShortcutError("Didn't catch a shortcut. If a key seems to do nothing, it's likely reserved by Windows (like Ctrl+Space) — try adding Shift or a different key.")
+    }, 5000)
+    return () => clearTimeout(timer)
   }, [isCapturingShortcut])
 
   const needsKey = PROVIDER_OPTIONS.find(p => p.value === provider)?.needsKey ?? false
@@ -219,50 +233,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     }
   }
 
-  const formatShortcutLabel = (accelerator) => accelerator
-    .replace(/Command/g, 'Cmd')
-    .replace(/Control/g, 'Ctrl')
-    .replace(/Alt/g, 'Alt')
-    .replace(/\+/g, ' + ')
-
-  const shortcutKeyFromEvent = (event) => {
-    const keyMap = {
-      ' ': 'Space',
-      Spacebar: 'Space',
-      Escape: 'Esc',
-      ArrowUp: 'Up',
-      ArrowDown: 'Down',
-      ArrowLeft: 'Left',
-      ArrowRight: 'Right',
-      Delete: 'Delete',
-      Backspace: 'Backspace',
-      Enter: 'Enter',
-      Tab: 'Tab',
-    }
-    if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return null
-    if (keyMap[event.key]) return keyMap[event.key]
-    if (/^F\d{1,2}$/.test(event.key)) return event.key
-    if (event.key.length === 1) return event.key.toUpperCase()
-    return event.key
-  }
-
-  const shortcutFromEvent = (event) => {
-    const key = shortcutKeyFromEvent(event)
-    if (!key || key === 'Esc') return null
-
-    const isMac = window.navigator.platform.toLowerCase().includes('mac')
-    const modifiers = []
-    if (event.metaKey) modifiers.push(isMac ? 'Command' : 'Super')
-    if (event.ctrlKey) modifiers.push('Control')
-    if (event.altKey) modifiers.push('Alt')
-    if (event.shiftKey) modifiers.push('Shift')
-
-    const hasPrimaryModifier = modifiers.some(modifier => modifier === 'Command' || modifier === 'Control' || modifier === 'Alt' || modifier === 'Super')
-    if (!hasPrimaryModifier) return null
-
-    return [...modifiers, key].join('+')
-  }
-
   const handleShortcutKeyDown = (event) => {
     if (!isCapturingShortcut) return
     event.preventDefault()
@@ -275,10 +245,20 @@ export function SettingsPanel({ open, onClose, onSaved }) {
       return
     }
 
+    // Keep waiting while only modifiers are held (e.g. Alt before Space) so we
+    // don't flash an error before the user finishes the combo.
+    if (isModifierOnlyEvent(event)) return
+
     const nextShortcut = shortcutFromEvent(event)
     if (!nextShortcut) {
       setShortcutStatus('error')
-      setShortcutError('Use at least one modifier, such as Ctrl, Cmd, or Alt, plus another key.')
+      setShortcutError('Hold Ctrl, Alt, or the Windows key and press another key.')
+      return
+    }
+    if (isReservedAccelerator(nextShortcut)) {
+      setIsCapturingShortcut(false)
+      setShortcutStatus('error')
+      setShortcutError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work as a shortcut. Try another combination.`)
       return
     }
 
@@ -295,7 +275,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
       const shortcutResult = await window.voicerefine?.setRecordingShortcut?.(accelerator)
       if (shortcutResult && !shortcutResult.ok) {
         setShortcutStatus('error')
-        setShortcutError(`${formatShortcutLabel(shortcutResult.failedAccelerator)} is unavailable. VoiceRefine kept ${formatShortcutLabel(shortcutResult.accelerator)}.`)
+        setShortcutError(`${formatShortcutLabel(shortcutResult.failedAccelerator)} is already in use by another app and can't be used. Still using ${formatShortcutLabel(shortcutResult.accelerator)}.`)
         setRecordingShortcut(shortcutResult.accelerator)
         return
       }
@@ -515,7 +495,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               </div>
             </div>
             <p className="mt-2 text-xs text-[#8A766E] leading-snug">
-              This shortcut works globally and toggles the overlay recording in other apps. Use Ctrl, Cmd, or Alt with another key.
+              This shortcut works globally and toggles the overlay recording in other apps. Use Ctrl, Alt, or the Windows key with another key. Press Esc while recording to cancel.
             </p>
             {shortcutStatus === 'error' && <p className="mt-2 text-xs text-red-700">{shortcutError}</p>}
             {shortcutStatus === 'ready' && <p className="mt-2 text-xs text-[#5C8F70]">Shortcut updated.</p>}

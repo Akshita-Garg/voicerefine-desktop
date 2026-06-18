@@ -8,6 +8,7 @@ import {
   TRANSFORM_PROMPT_MODE_PRESET,
   promptStorageKeyForPreset,
 } from '../utils/refinementSettings'
+import { formatShortcutLabel, isModifierOnlyEvent, isReservedAccelerator, shortcutFromEvent } from '../utils/shortcut'
 
 const REFINEMENT_CHOICES = [
   {
@@ -29,52 +30,6 @@ const PROVIDERS = [
   { value: 'gemini',  label: 'Cloud (Gemini)',         needsKey: true, description: 'Free API key from Google AI Studio.' },
   { value: 'openai',  label: 'Cloud (OpenAI)',         needsKey: true, description: 'Requires an OpenAI API key.' },
 ]
-
-function formatShortcutLabel(accelerator) {
-  return accelerator
-    .replace(/Command/g, 'Cmd')
-    .replace(/Control/g, 'Ctrl')
-    .replace(/Alt/g, 'Alt')
-    .replace(/\+/g, ' + ')
-}
-
-function shortcutKeyFromEvent(event) {
-  const keyMap = {
-    ' ': 'Space',
-    Spacebar: 'Space',
-    Escape: 'Esc',
-    ArrowUp: 'Up',
-    ArrowDown: 'Down',
-    ArrowLeft: 'Left',
-    ArrowRight: 'Right',
-    Delete: 'Delete',
-    Backspace: 'Backspace',
-    Enter: 'Enter',
-    Tab: 'Tab',
-  }
-  if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return null
-  if (keyMap[event.key]) return keyMap[event.key]
-  if (/^F\d{1,2}$/.test(event.key)) return event.key
-  if (event.key.length === 1) return event.key.toUpperCase()
-  return event.key
-}
-
-function shortcutFromEvent(event) {
-  const key = shortcutKeyFromEvent(event)
-  if (!key || key === 'Esc') return null
-
-  const isMac = window.navigator.platform.toLowerCase().includes('mac')
-  const modifiers = []
-  if (event.metaKey) modifiers.push(isMac ? 'Command' : 'Super')
-  if (event.ctrlKey) modifiers.push('Control')
-  if (event.altKey) modifiers.push('Alt')
-  if (event.shiftKey) modifiers.push('Shift')
-
-  const hasPrimaryModifier = modifiers.some(modifier => modifier === 'Command' || modifier === 'Control' || modifier === 'Alt' || modifier === 'Super')
-  if (!hasPrimaryModifier) return null
-
-  return [...modifiers, key].join('+')
-}
 
 function Step1({ refinementMode, onSelect, onContinue }) {
   return (
@@ -118,8 +73,8 @@ function Step1({ refinementMode, onSelect, onContinue }) {
 }
 
 function ShortcutStep({ onContinue }) {
-  const [shortcut, setShortcut] = useState('Control+Space')
-  const [defaultShortcut, setDefaultShortcut] = useState('Control+Space')
+  const [shortcut, setShortcut] = useState('Control+Shift+Space')
+  const [defaultShortcut, setDefaultShortcut] = useState('Control+Shift+Space')
   const [capturing, setCapturing] = useState(false)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
@@ -127,7 +82,7 @@ function ShortcutStep({ onContinue }) {
 
   useEffect(() => {
     window.voicerefine?.getRecordingShortcut?.().then(result => {
-      const nextDefault = result?.defaultAccelerator ?? 'Control+Space'
+      const nextDefault = result?.defaultAccelerator ?? 'Control+Shift+Space'
       setDefaultShortcut(nextDefault)
       setShortcut(result?.accelerator ?? nextDefault)
     }).catch(err => {
@@ -137,6 +92,18 @@ function ShortcutStep({ onContinue }) {
 
   useEffect(() => {
     if (capturing) buttonRef.current?.focus()
+  }, [capturing])
+
+  // Windows swallows some combos (e.g. Ctrl+Space) before the field gets a
+  // keydown, so capture would sit silently. Surface a hint if nothing lands.
+  useEffect(() => {
+    if (!capturing) return
+    const timer = setTimeout(() => {
+      setCapturing(false)
+      setStatus('error')
+      setError("Didn't catch a shortcut. If a key seems to do nothing, it's likely reserved by Windows (like Ctrl+Space) — try adding Shift or a different key.")
+    }, 5000)
+    return () => clearTimeout(timer)
   }, [capturing])
 
   const handleKeyDown = (event) => {
@@ -151,10 +118,20 @@ function ShortcutStep({ onContinue }) {
       return
     }
 
+    // Keep waiting while only modifiers are held (e.g. Alt before Space) so we
+    // don't flash an error before the user finishes the combo.
+    if (isModifierOnlyEvent(event)) return
+
     const nextShortcut = shortcutFromEvent(event)
     if (!nextShortcut) {
       setStatus('error')
-      setError('Use Ctrl, Cmd, or Alt with another key.')
+      setError('Hold Ctrl, Alt, or the Windows key and press another key.')
+      return
+    }
+    if (isReservedAccelerator(nextShortcut)) {
+      setCapturing(false)
+      setStatus('error')
+      setError(`${formatShortcutLabel(nextShortcut)} is reserved by Windows and won't work. Try another combination.`)
       return
     }
 
@@ -172,7 +149,7 @@ function ShortcutStep({ onContinue }) {
       if (result && !result.ok) {
         setStatus('error')
         setShortcut(result.accelerator ?? defaultShortcut)
-        setError(`${formatShortcutLabel(result.failedAccelerator)} is unavailable. Try another shortcut.`)
+        setError(`${formatShortcutLabel(result.failedAccelerator)} is already in use by another app and can't be used. Pick a different shortcut.`)
         return
       }
       onContinue()
@@ -237,7 +214,7 @@ function ShortcutStep({ onContinue }) {
         </div>
 
         <p className="text-xs text-[#8A766E] text-center leading-snug">
-          Default is {formatShortcutLabel(defaultShortcut)}. If a shortcut is already used by your system, VoiceRefine will ask you to choose another.
+          Default is {formatShortcutLabel(defaultShortcut)}. If a shortcut is already used by your system, VoiceRefine will ask you to choose another. Press Esc while recording to cancel.
         </p>
         {status === 'error' && <p className="text-sm text-red-700 text-center">{error}</p>}
       </div>
@@ -423,7 +400,7 @@ export function Onboarding({ onComplete }) {
       style={{ background: 'linear-gradient(180deg, #EADBD2 0%, #E6D4C2 100%)' }}
     >
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(58,47,42,0.08)]">
-        <h1 className="text-xl font-semibold tracking-tight text-[#C96F3B]">VoiceRefine</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-[#c35f67]">VoiceRefine</h1>
         <span className="text-xs text-[#8A766E]">Step {step} of {refinementMode === REFINEMENT_MODE_TRANSFORM ? 3 : 2}</span>
       </div>
 
